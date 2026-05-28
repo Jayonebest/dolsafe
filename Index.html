@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>DolSafe</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A1628">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DolSafe">
+  <link rel="apple-touch-icon" href="icon.png">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { background:#0A1628; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; display:flex; justify-content:center; min-height:100vh; overflow-x:hidden; }
+    .phone { width:100%; max-width:430px; display:flex; flex-direction:column; min-height:100vh; animation:fadeIn .4s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes pulse { 0%,100%{transform:scale(1)}50%{transform:scale(1.03)} }
+
+    .header { background:#0A1628; padding:52px 20px 16px; }
+    .header-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .logo { font-size:26px; font-weight:700; color:white; letter-spacing:-.5px; }
+    .logo span { color:#3B9EFF; }
+    .notif-btn { width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; }
+    .header-sub { font-size:13px; color:#94A3B8; }
+
+    .scroll { flex:1; padding:14px 20px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+    .briefing-box { background:#0d2040; border:1px solid #3B9EFF; border-radius:16px; padding:14px; margin-bottom:16px; display:none; animation:slideUp .5s ease; }
+    .briefing-label { font-size:10px; font-weight:600; color:#3B9EFF; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+    .briefing-dot { width:6px; height:6px; border-radius:50%; background:#3B9EFF; animation:pulse 1.5s infinite; }
+    .briefing-text { font-size:13px; color:#e2e8f0; line-height:1.75; }
+    .briefing-day { font-size:10px; color:#64748B; margin-top:8px; }
+
+    .score-card { background:#122245; border-radius:16px; padding:16px; display:flex; align-items:center; gap:14px; margin-bottom:20px; animation:slideUp .5s ease .1s both; }
+    .score-ring { width:70px; height:70px; border-radius:50%; border:4px solid #3B9EFF; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; }
+    .score-num { font-size:24px; font-weight:700; color:#3B9EFF; line-height:1; }
+    .score-lbl { font-size:9px; color:#94A3B8; }
+    .score-title { font-size:15px; font-weight:600; color:white; margin-bottom:3px; }
+    .score-sub { font-size:12px; color:#94A3B8; margin-bottom:4px; }
+    .score-alert { font-size:11px; color:#DC2626; }
+
+    .slbl { font-size:10px; font-weight:600; color:#94A3B8; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
+
+    .dolphin-banner { background:linear-gradient(135deg,#122245,#0d2040); border:1px solid #3B9EFF; border-radius:16px; padding:14px; margin-bottom:20px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:border-color .2s, transform .15s; animation:slideUp .5s ease .2s both; }
+    .dolphin-banner:active { transform:scale(0.98); border-color:#22C55E; }
+    .db-icon { font-size:30px; flex-shrink:0; }
+    .db-title { font-size:14px; font-weight:700; color:#3B9EFF; margin-bottom:3px; }
+    .db-sub { font-size:11px; color:#94A3B8; line-height:1.4; }
+    .db-btn { background:#3B9EFF; border:none; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:600; color:white; cursor:pointer; flex-shrink:0; transition:background .15s; }
+    .db-btn:active { background:#1A6FC4; }
+
+    .action-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; animation:slideUp .5s ease .3s both; }
+    .action-card { background:#122245; border-radius:14px; padding:16px 12px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; border:1px solid transparent; transition:border-color .15s, transform .15s, background .15s; }
+    .action-card:active { transform:scale(0.96); background:#0d2040; }
+    .action-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .action-name { font-size:12px; font-weight:600; color:white; }
+    .action-sub { font-size:10px; color:#94A3B8; text-align:center; }
+
+    .checkin-card { background:#122245; border-radius:14px; padding:14px; display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:90px; border:1px solid transparent; transition:all .2s; animation:slideUp .5s ease .4s both; }
+    .checkin-card:active { transform:scale(0.98); }
+    .checkin-card.done { background:#166634; border-color:#22C55E; }
+    .ci-icon { font-size:28px; flex-shrink:0; }
+    .ci-title { font-size:13px; font-weight:600; color:white; }
+    .ci-sub { font-size:11px; color:#94A3B8; margin-top:2px; }
+    .xp { font-size:13px; font-weight:700; color:#EF9F27; margin-left:auto; flex-shrink:0; }
+
+    .bottom-nav { background:#0A1628; border-top:1px solid #1e3a6e; display:flex; padding:10px 0 20px; position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px; z-index:50; }
+    .nav-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; color:#94A3B8; font-size:20px; transition:color .15s; }
+    .nav-item.active { color:#3B9EFF; }
+    .nav-lbl { font-size:10px; }
+    .nav-sos { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; }
+    .sos-btn { width:48px; height:48px; border-radius:50%; background:#DC2626; display:flex; align-items:center; justify-content:center; font-size:22px; margin-top:-16px; box-shadow:0 0 0 3px #0A1628, 0 0 20px rgba(220,38,38,0.4); transition:transform .15s; }
+    .sos-btn:active { transform:scale(0.92); }
+    .sos-lbl { font-size:10px; font-weight:700; color:#DC2626; }
+
+    .toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px); background:#22C55E; color:white; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:600; opacity:0; transition:all .3s; pointer-events:none; white-space:nowrap; z-index:100; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="header">
+    <div class="header-row">
+      <div class="logo">Dol<span>Safe</span></div>
+      <div style="display:flex;gap:8px">
+        <div class="notif-btn" onclick="shareapp()">📤</div>
+        <div class="notif-btn">🔔</div>
+      </div>
+    </div>
+    <p class="header-sub" id="headerSub">📍 Getting your location...</p>
+  </div>
+
+  <div class="scroll">
+
+    <div class="briefing-box" id="briefing-box">
+      <div class="briefing-label">
+        <div class="briefing-dot"></div>
+        <span id="briefing-label-text">Morning briefing · AI generated</span>
+      </div>
+      <div class="briefing-text" id="briefing-text"></div>
+      <div class="briefing-day" id="briefing-day"></div>
+    </div>
+
+    <div class="score-card">
+      <div class="score-ring">
+        <span class="score-num" id="safeScore">—</span>
+        <span class="score-lbl">Safe</span>
+      </div>
+      <div>
+        <p class="score-title" id="scoreTitle">Loading safety data...</p>
+        <p class="score-sub" id="scoreSub"></p>
+        <p class="score-alert" id="scoreAlert"></p>
+      </div>
+    </div>
+
+    <p class="slbl">See Something?</p>
+    <div class="dolphin-banner" onclick="window.location.href='report.html'">
+      <div class="db-icon">🐬</div>
+      <div style="flex:1">
+        <p class="db-title">Say Something.</p>
+        <p class="db-sub">DolSafe makes sure it reaches the right people and keeps your community safer.</p>
+      </div>
+      <button class="db-btn" onclick="event.stopPropagation();window.location.href='report.html'">Report</button>
+    </div>
+
+    <p class="slbl">Quick Actions</p>
+    <div class="action-grid">
+      <div class="action-card" onclick="window.location.href='vault.html'">
+        <div class="action-icon" style="background:#1A6FC422">🔒</div>
+        <span class="action-name">Vault</span>
+        <span class="action-sub">Secure docs</span>
+      </div>
+      <div class="action-card" onclick="window.location.href='report.html'">
+        <div class="action-icon" style="background:#EF9F2722">📋</div>
+        <span class="action-name">SmartReport</span>
+        <span class="action-sub">Say something</span>
+      </div>
+      <div class="action-card" onclick="window.location.href='trustlens.html'">
+        <div class="action-icon" style="background:#8B5CF622">📷</div>
+        <span class="action-name">TruthLens</span>
+        <span class="action-sub">Verify media</span>
+      </div>
+      <div class="action-card" onclick="window.location.href='sos.html'">
+        <div class="action-icon" style="background:#DC262622">🆘</div>
+        <span class="action-name">SOS</span>
+        <span class="action-sub">Emergency</span>
+      </div>
+    </div>
+
+    <p class="slbl">Today</p>
+    <div class="checkin-card" id="cc" onclick="checkIn()">
+      <span class="ci-icon" id="ci">☑️</span>
+      <div>
+        <p class="ci-title" id="ct">Daily safe check-in</p>
+        <p class="ci-sub" id="cs">Tap to confirm you're safe · +50 XP</p>
+      </div>
+      <span class="xp">+50 XP</span>
+    </div>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="nav-item active"><span>🏠</span><span class="nav-lbl">Home</span></div>
+    <div class="nav-item" onclick="window.location.href='safemap.html'"><span>🗺️</span><span class="nav-lbl">SafeMap</span></div>
+    <div class="nav-sos">
+      <div class="sos-btn" onclick="window.location.href='sos.html'">⚠</div>
+      <span class="sos-lbl">SOS</span>
+    </div>
+    <div class="nav-item" onclick="window.location.href='vault.html'"><span>🔒</span><span class="nav-lbl">Vault</span></div>
+    <div class="nav-item" onclick="window.location.href='profile.html'"><span>👤</span><span class="nav-lbl">Profile</span></div>
+  </nav>
+
+  <div class="toast" id="t"></div>
+</div>
+
+<script>
+var CLAUDE_KEY = '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';
+
+// ── Time helpers ──
+function getTimeOfDay() {
+  var h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
+}
+
+function getGreeting() {
+  var h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+// ── Safety score — dynamic by time of day ──
+function loadSafetyScore(city) {
+  var h = new Date().getHours();
+  var score, title, sub, alert;
+  if (h >= 0  && h < 6)  { score = 91; title = 'Very calm · ' + city; sub = 'Minimal activity · all routes clear'; alert = ''; }
+  else if (h >= 6  && h < 9)  { score = 72; title = 'Morning rush · ' + city; sub = 'Elevated transit activity'; alert = '⚠ Keep belongings secure during commute'; }
+  else if (h >= 9  && h < 12) { score = 84; title = 'Calm · ' + city; sub = 'Normal activity · no active alerts'; alert = ''; }
+  else if (h >= 12 && h < 14) { score = 78; title = 'Moderate · ' + city; sub = 'Busy lunch hour in commercial areas'; alert = ''; }
+  else if (h >= 14 && h < 17) { score = 82; title = 'Calm · ' + city; sub = 'Afternoon activity normal'; alert = ''; }
+  else if (h >= 17 && h < 20) { score = 65; title = 'Evening rush · ' + city; sub = 'Peak transit hours · stay aware'; alert = '⚠ Elevated activity near transit hubs'; }
+  else if (h >= 20 && h < 23) { score = 70; title = 'Evening · ' + city; sub = 'Entertainment areas busy'; alert = '⚠ Stay in well-lit areas'; }
+  else { score = 80; title = 'Quiet · ' + city; sub = 'Activity winding down'; alert = ''; }
+
+  document.getElementById('safeScore').textContent = score;
+  document.getElementById('scoreTitle').textContent = title;
+  document.getElementById('scoreSub').textContent = sub;
+  document.getElementById('scoreAlert').textContent = alert;
+}
+
+// ── Briefing — dynamic by day and city ──
+function loadBriefing(city) {
+  var box  = document.getElementById('briefing-box');
+  var text = document.getElementById('briefing-text');
+  var day  = document.getElementById('briefing-day');
+  var now  = new Date();
+  var dow  = now.getDay();
+  var dayName = dayNames[dow];
+
+  box.style.display = 'block';
+  text.textContent  = '🐬 Generating your ' + city + ' safety briefing...';
+  day.textContent   = dayName + ' · ' + now.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+
+  document.getElementById('briefing-label-text').textContent =
+    city + ' briefing · ' + dayName;
+
+  // Dynamic briefings by day — city name injected
+  var briefings = {
+    0: getGreeting() + ' from ' + city + ' 🌅 Sunday — lighter activity today. A great day to explore your neighborhood and check on neighbors. Report any graffiti or vandalism using DolSafe SmartReport. Stay aware in tourist areas. Enjoy your Sunday safely. 🐬',
+    1: getGreeting() + ' · ' + city + ' 🌆 Monday energy — watch for heavy commuter traffic near transit hubs. Pickpocket risk elevated during rush hour — keep bags in front. Community boards meet this week — check local listings. Start your week safe. 🐬',
+    2: getGreeting() + ' · ' + city + ' 🌤 Tuesday — moderate safety conditions reported. Safety tip: always share your location with a trusted contact when traveling after dark. Farmers markets open in many neighborhoods today. Stay aware out there. 🐬',
+    3: getGreeting() + ' · ' + city + ' 🌥 Wednesday midweek check — light rain possible this afternoon, carry an umbrella. Wet surfaces increase slip risk — take care on stairs and platforms. Community cleanup events happening today. Stay safe and dry. 🐬',
+    4: getGreeting() + ' · ' + city + ' 🌇 Thursday — elevated foot traffic in commercial areas today. Keep belongings secure in crowded spaces. Neighborhood watch meetings happening tonight — check your local community board. Stay sharp. 🐬',
+    5: getGreeting() + ' · ' + city + ' 🎉 Friday — weekend starts tonight. Entertainment areas see elevated incidents Friday nights. Look out for friends and strangers alike. If you see something — say something using DolSafe SmartReport. Stay smart. 🐬',
+    6: getGreeting() + ' and happy Saturday · ' + city + ' 🌞 Great conditions across the city today. Parks and community spaces hosting events — enjoy safely. Keep an eye on your valuables in crowded areas. Your city, your community, your safety. 🐬'
+  };
+
+  setTimeout(function() {
+    text.textContent = briefings[dow];
+  }, 1500);
+}
+
+// ── Location ──
+function getLocation() {
+  if (!navigator.geolocation) { askForCity(); return; }
+  document.getElementById('headerSub').textContent = '📍 Getting your location...';
+  navigator.geolocation.getCurrentPosition(
+    function(pos) { reverseGeocode(pos.coords.latitude, pos.coords.longitude); },
+    function()    { askForCity(); },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+}
+
+function reverseGeocode(lat, lng) {
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng,
+    { headers: { 'Accept-Language': 'en' } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var a = data.address || {};
+      var city    = a.city || a.town || a.village || a.county || '';
+      var state   = a.state || '';
+      var country = a.country || '';
+      if (!city) { askForCity(); return; }
+      var display = city + (country && country !== 'United States' ? ', ' + country : '');
+      var full    = city + (state ? ', ' + state : '') + (country && country !== 'United States' ? ', ' + country : '');
+      document.getElementById('headerSub').textContent = getGreeting() + ' · 📍 ' + display;
+      loadSafetyScore(city);
+      loadBriefing(full);
+    })
+    .catch(function() { askForCity(); });
+}
+
+function askForCity() {
+  var box  = document.getElementById('briefing-box');
+  var text = document.getElementById('briefing-text');
+  box.style.display = 'block';
+  text.innerHTML =
+    '<div style="font-size:13px;color:#94A3B8;margin-bottom:10px">' +
+    '📍 Location unavailable.<br>Enter your city for a local safety briefing.</div>' +
+    '<div style="display:flex;gap:8px">' +
+    '<input id="cityInput" type="text" placeholder="e.g. Paris, Chicago, London..." ' +
+    'style="flex:1;background:#122245;border:1px solid #1e3a6e;border-radius:10px;' +
+    'padding:10px 12px;font-size:13px;color:white;outline:none" ' +
+    'onkeypress="if(event.key===\'Enter\')submitCity()" />' +
+    '<button onclick="submitCity()" style="background:#3B9EFF;border:none;border-radius:10px;' +
+    'padding:10px 14px;font-size:13px;font-weight:700;color:white;cursor:pointer">Go</button>' +
+    '</div>';
+  document.getElementById('headerSub').textContent = '📍 Enter your city';
+  setTimeout(function() {
+    var input = document.getElementById('cityInput');
+    if (input) input.focus();
+  }, 300);
+}
+
+function submitCity() {
+  var input = document.getElementById('cityInput');
+  if (!input) return;
+  var city = input.value.trim();
+  if (!city) { input.style.borderColor = '#DC2626'; return; }
+  document.getElementById('headerSub').textContent = getGreeting() + ' · 📍 ' + city;
+  loadSafetyScore(city);
+  loadBriefing(city);
+}
+
+// ── Check-in ──
+function checkIn() {
+  var card = document.getElementById('cc');
+  if (card.classList.contains('done')) return;
+  card.classList.add('done');
+  document.getElementById('ci').textContent = '✅';
+  document.getElementById('ct').textContent = '✓ Checked in safe!';
+  document.getElementById('cs').textContent = 'Streak protected · +50 XP earned · 🐬';
+  showToast('🐬 +50 XP · Safe check-in recorded');
+}
+
+// ── Toast ──
+function showToast(msg) {
+  var t = document.getElementById('t');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+function shareApp() {
+  var text = '🐬 I am using DolSafe — a free safety app that actually works. See something? Say something. Join me: ';
+  var url  = window.location.href.split('/').slice(0,-1).join('/') || 'https://dolsafe.app';
+  if (navigator.share) {
+    navigator.share({ title:'DolSafe · Safety for everyone', text:text, url:url })
+      .then(function(){ showToast('🐬 Shared! Thank you for spreading safety'); })
+      .catch(function(){});
+  } else {
+    navigator.clipboard.writeText(text + url).then(function(){
+      showToast('🔗 Link copied · share it with friends');
+    }).catch(function(){
+      showToast('🐬 Share DolSafe: dolsafe.app');
+    });
+  }
+}
+
+window.onload = function() { getLocation(); };
+</script>
+</body>
+</html>

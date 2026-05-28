@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DolSafe · TrustLens</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#0A1628; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:white; min-height:100vh; }
+
+    /* Header */
+    .header { background:#0a1628; border-bottom:1px solid #1e3a6e; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+    .header-left { display:flex; align-items:center; gap:12px; }
+    .back-btn { font-size:20px; color:#94A3B8; cursor:pointer; }
+    .header-title { font-size:16px; font-weight:700; color:white; }
+    .header-sub { font-size:11px; color:#94A3B8; margin-top:1px; }
+    .live-badge { display:flex; align-items:center; gap:6px; background:#fee2e2; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; color:#DC2626; }
+    .live-dot { width:8px; height:8px; border-radius:50%; background:#DC2626; animation:pulse .8s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn { from{opacity:0}to{opacity:1} }
+
+    /* Stats bar */
+    .stats-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:#1e3a6e; border-bottom:1px solid #1e3a6e; }
+    .stat { background:#0d1f3c; padding:12px 16px; text-align:center; }
+    .stat-val { font-size:22px; font-weight:700; margin-bottom:2px; }
+    .stat-lbl { font-size:10px; color:#94A3B8; text-transform:uppercase; letter-spacing:.5px; }
+
+    /* Main grid */
+    .main { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto auto; gap:12px; padding:14px; }
+
+    /* Panel base */
+    .panel { background:#0d1f3c; border-radius:14px; border:1px solid #1e3a6e; overflow:hidden; }
+    .panel-hdr { display:flex; align-items:center; justify-content:space-between; padding:11px 14px; border-bottom:1px solid #1e3a6e; }
+    .panel-title { font-size:12px; font-weight:600; color:white; display:flex; align-items:center; gap:7px; }
+    .panel-icon { font-size:16px; }
+    .panel-badge { font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
+
+    /* Camera feed */
+    .camera-panel { grid-column:1; grid-row:1; }
+    .cam-feed { position:relative; background:#000; height:200px; overflow:hidden; }
+    .cam-bg { width:100%; height:100%; background:linear-gradient(135deg,#0a0f1a,#0d1520,#0a0f1a); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+
+    /* Subway platform scene */
+    .platform { position:absolute; bottom:0; left:0; right:0; height:60px; background:#1a1a2e; border-top:3px solid #2a2a4e; }
+    .platform-line { position:absolute; top:0; left:0; right:0; height:3px; background:#3B9EFF; opacity:.3; }
+    .tracks { position:absolute; bottom:0; left:0; right:0; height:20px; background:#111; display:flex; align-items:center; padding:0 20px; gap:30px; }
+    .track-rail { flex:1; height:2px; background:#333; }
+
+    /* People on platform */
+    .person { position:absolute; bottom:60px; display:flex; flex-direction:column; align-items:center; gap:2px; transition:all .3s; }
+    .person-body { font-size:20px; }
+    .person-shadow { width:16px; height:4px; background:rgba(0,0,0,.5); border-radius:50%; }
+
+    /* Detection boxes */
+    .detect-box { position:absolute; border:2px solid; border-radius:4px; transition:all .3s; }
+    .detect-box.green { border-color:#22C55E; background:rgba(34,197,94,.08); }
+    .detect-box.yellow { border-color:#F59E0B; background:rgba(245,158,11,.08); animation:pulse .8s infinite; }
+    .detect-box.orange { border-color:#F97316; background:rgba(249,115,22,.1); animation:pulse .6s infinite; }
+    .detect-box.red { border-color:#DC2626; background:rgba(220,38,38,.12); animation:pulse .4s infinite; }
+    .detect-label { position:absolute; top:-20px; left:0; font-size:9px; font-weight:700; padding:2px 5px; border-radius:3px; white-space:nowrap; }
+    .detect-label.green { background:#22C55E; color:#000; }
+    .detect-label.yellow { background:#F59E0B; color:#000; }
+    .detect-label.orange { background:#F97316; color:#fff; }
+    .detect-label.red { background:#DC2626; color:#fff; }
+
+    .cam-info { position:absolute; top:8px; left:10px; font-size:9px; color:rgba(255,255,255,.6); font-family:monospace; }
+    .cam-rec { position:absolute; top:8px; right:10px; display:flex; align-items:center; gap:4px; font-size:9px; color:#DC2626; font-weight:700; }
+    .cam-rec-dot { width:6px; height:6px; border-radius:50%; background:#DC2626; animation:pulse .8s infinite; }
+
+    .cam-footer { padding:8px 12px; display:flex; align-items:center; justify-content:space-between; font-size:10px; }
+    .cam-location { color:#94A3B8; }
+    .cam-threat { font-weight:600; }
+
+    /* Subway map panel */
+    .map-panel { grid-column:2; grid-row:1; }
+    .map-container { padding:10px; height:200px; position:relative; overflow:hidden; }
+    .map-svg { width:100%; height:100%; }
+
+    /* Alert feed */
+    .alert-panel { grid-column:1; grid-row:2; }
+    .alert-feed { max-height:220px; overflow-y:auto; }
+    .alert-feed::-webkit-scrollbar { width:3px; }
+    .alert-feed::-webkit-scrollbar-thumb { background:#1e3a6e; }
+    .alert-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-bottom:1px solid #1e3a6e; animation:slideIn .3s ease; }
+    .alert-item:last-child { border-bottom:none; }
+    .alert-severity { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+    .alert-body { flex:1; }
+    .alert-title { font-size:11px; font-weight:600; margin-bottom:2px; }
+    .alert-desc { font-size:10px; color:#94A3B8; line-height:1.4; }
+    .alert-meta { display:flex; align-items:center; gap:6px; margin-top:4px; }
+    .alert-time { font-size:9px; color:#64748B; }
+    .alert-station { font-size:9px; font-weight:600; padding:1px 6px; border-radius:10px; }
+    .alert-level { font-size:9px; font-weight:700; padding:1px 7px; border-radius:10px; }
+
+    /* Deployment panel */
+    .deploy-panel { grid-column:2; grid-row:2; }
+    .deploy-list { max-height:220px; overflow-y:auto; }
+    .deploy-list::-webkit-scrollbar { width:3px; }
+    .deploy-list::-webkit-scrollbar-thumb { background:#1e3a6e; }
+    .deploy-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-bottom:1px solid #1e3a6e; }
+    .deploy-item:last-child { border-bottom:none; }
+    .deploy-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+    .deploy-body { flex:1; }
+    .deploy-title { font-size:11px; font-weight:600; color:white; margin-bottom:2px; }
+    .deploy-desc { font-size:10px; color:#94A3B8; line-height:1.4; }
+    .deploy-action { display:flex; align-items:center; gap:6px; margin-top:5px; }
+    .deploy-btn { font-size:10px; font-weight:600; padding:3px 10px; border-radius:12px; border:none; cursor:pointer; transition:all .15s; }
+
+    /* Bottom sim controls */
+    .sim-bar { margin:0 14px 14px; background:#0d1f3c; border-radius:12px; padding:12px 14px; border:1px solid #1e3a6e; display:flex; align-items:center; gap:10px; }
+    .sim-label { font-size:11px; color:#94A3B8; flex:1; }
+    .sim-btn { font-size:11px; font-weight:600; padding:6px 14px; border-radius:8px; border:none; cursor:pointer; transition:all .15s; }
+
+    /* Brian Thompson timeline */
+    .timeline-panel { margin:0 14px 14px; background:#0d1f3c; border-radius:14px; border:1px solid #1e3a6e; overflow:hidden; display:none; }
+    .timeline-hdr { padding:12px 14px; border-bottom:1px solid #1e3a6e; display:flex; align-items:center; justify-content:space-between; }
+    .timeline-title { font-size:12px; font-weight:600; color:white; display:flex; align-items:center; gap:7px; }
+    .timeline-body { padding:12px 14px; }
+    .tl-event { display:flex; gap:12px; align-items:flex-start; padding:8px 0; position:relative; }
+    .tl-left { display:flex; flex-direction:column; align-items:center; width:50px; flex-shrink:0; }
+    .tl-time { font-size:10px; font-weight:700; color:#94A3B8; font-family:monospace; }
+    .tl-line { width:1px; flex:1; min-height:10px; background:#1e3a6e; margin-top:3px; }
+    .tl-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:4px; border:2px solid; }
+    .tl-body { flex:1; padding-top:2px; }
+    .tl-title { font-size:11px; font-weight:600; margin-bottom:2px; }
+    .tl-desc { font-size:10px; color:#94A3B8; line-height:1.45; }
+    .tl-alert { font-size:10px; font-weight:600; padding:3px 9px; border-radius:12px; display:inline-block; margin-top:4px; }
+    .tl-event.pending .tl-dot { border-color:#1e3a6e; background:#0d1f3c; }
+    .tl-event.pending .tl-title { color:#64748B; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="back-btn" onclick="window.location.href='index.html'">←</div>
+    <div>
+      <div class="header-title">🔍 TrustLens</div>
+      <div class="header-sub">Behavioral intelligence · NYC Transit</div>
+    </div>
+  </div>
+  <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+</div>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-val" style="color:#3B9EFF" id="camCount">15,284</div>
+    <div class="stat-lbl">Cameras active</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:#22C55E" id="alertCount">3</div>
+    <div class="stat-lbl">Active alerts</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:#EF9F27" id="deployCount">2</div>
+    <div class="stat-lbl">Deployments</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" style="color:#DC2626" id="critCount">1</div>
+    <div class="stat-lbl">Critical</div>
+  </div>
+</div>
+
+<!-- Main grid -->
+<div class="main">
+
+  <!-- Camera feed -->
+  <div class="panel camera-panel">
+    <div class="panel-hdr">
+      <div class="panel-title"><span class="panel-icon">📹</span>Live camera feed</div>
+      <div class="panel-badge" style="background:#fee2e2;color:#DC2626" id="camStatus">THREAT DETECTED</div>
+    </div>
+    <div class="cam-feed">
+      <div class="cam-bg" id="camBg">
+        <!-- Platform scene -->
+        <div class="platform">
+          <div class="platform-line"></div>
+          <div class="tracks">
+            <div class="track-rail"></div>
+            <div class="track-rail"></div>
+          </div>
+        </div>
+
+        <!-- People -->
+        <div class="person" style="left:15%;bottom:58px" id="p1">
+          <div class="person-body">🧍</div>
+          <div class="person-shadow"></div>
+        </div>
+        <div class="person" style="left:30%;bottom:58px" id="p2">
+          <div class="person-body">🧍</div>
+          <div class="person-shadow"></div>
+        </div>
+        <div class="person" style="left:55%;bottom:58px" id="p3">
+          <div class="person-body">🧍‍♂️</div>
+          <div class="person-shadow"></div>
+        </div>
+        <div class="person" style="left:72%;bottom:58px" id="p4">
+          <div class="person-body">🧍</div>
+          <div class="person-shadow"></div>
+        </div>
+        <div class="person" style="left:85%;bottom:58px" id="p5">
+          <div class="person-body">🧍‍♂️</div>
+          <div class="person-shadow"></div>
+        </div>
+
+        <!-- Detection boxes -->
+        <div class="detect-box green" id="box1" style="left:10%;bottom:56px;width:50px;height:60px">
+          <div class="detect-label green">Normal</div>
+        </div>
+        <div class="detect-box green" id="box2" style="left:25%;bottom:56px;width:50px;height:60px">
+          <div class="detect-label green">Normal</div>
+        </div>
+        <div class="detect-box red" id="box3" style="left:50%;bottom:56px;width:55px;height:60px">
+          <div class="detect-label red">⚠ EDGE RISK</div>
+        </div>
+        <div class="detect-box orange" id="box4" style="left:67%;bottom:56px;width:55px;height:60px">
+          <div class="detect-label orange">Loitering</div>
+        </div>
+        <div class="detect-box green" id="box5" style="left:80%;bottom:56px;width:50px;height:60px">
+          <div class="detect-label green">Normal</div>
+        </div>
+
+        <div class="cam-info">CAM-047 · Times Sq-42nd St · Platform B · Uptown</div>
+        <div class="cam-rec"><div class="cam-rec-dot"></div>REC</div>
+      </div>
+      <div class="cam-footer">
+        <div class="cam-location">📍 Times Square · 42nd St · Uptown 1/2/3</div>
+        <div class="cam-threat" style="color:#DC2626" id="camThreat">⚠ 2 behaviors flagged</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subway map -->
+  <div class="panel map-panel">
+    <div class="panel-hdr">
+      <div class="panel-title"><span class="panel-icon">🗺️</span>NYC deployment map</div>
+      <div class="panel-badge" style="background:#dbeafe;color:#1d4ed8">LIVE</div>
+    </div>
+    <div class="map-container">
+      <svg class="map-svg" viewBox="0 0 300 180" id="mapSvg">
+        <!-- Grid lines -->
+        <line x1="0" y1="90" x2="300" y2="90" stroke="#1e3a6e" stroke-width=".5" stroke-dasharray="4"/>
+        <line x1="150" y1="0" x2="150" y2="180" stroke="#1e3a6e" stroke-width=".5" stroke-dasharray="4"/>
+
+        <!-- Subway lines -->
+        <!-- A/C/E line (blue) -->
+        <polyline points="20,30 60,30 100,50 140,70 180,90 220,110 260,130 280,150" fill="none" stroke="#2352C8" stroke-width="3" stroke-linecap="round"/>
+        <!-- 1/2/3 line (red) -->
+        <polyline points="80,20 100,40 110,70 120,100 125,130 130,160" fill="none" stroke="#DC2626" stroke-width="3" stroke-linecap="round"/>
+        <!-- 4/5/6 line (green) -->
+        <polyline points="200,15 195,45 190,75 188,105 185,135 183,165" fill="none" stroke="#22C55E" stroke-width="3" stroke-linecap="round"/>
+        <!-- L line (grey) -->
+        <polyline points="30,90 80,90 130,90 180,90 230,90 270,90" fill="none" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- N/Q/R line (yellow) -->
+        <polyline points="40,160 80,130 120,100 160,75 200,55 240,40 275,30" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+
+        <!-- Stations — green (safe) -->
+        <circle cx="60" cy="30" r="5" fill="#22C55E" stroke="#0d1f3c" stroke-width="1.5"/>
+        <circle cx="100" cy="50" r="5" fill="#22C55E" stroke="#0d1f3c" stroke-width="1.5"/>
+        <circle cx="80" cy="90" r="5" fill="#22C55E" stroke="#0d1f3c" stroke-width="1.5"/>
+        <circle cx="188" cy="105" r="5" fill="#22C55E" stroke="#0d1f3c" stroke-width="1.5"/>
+        <circle cx="240" cy="40" r="5" fill="#22C55E" stroke="#0d1f3c" stroke-width="1.5"/>
+        <circle cx="130" cy="160" r="5" fill="#22C55E" stroke="#0d1f3c" stroke-width="1.5"/>
+        <circle cx="270" cy="90" r="5" fill="#22C55E" stroke="#0d1f3c" stroke-width="1.5"/>
+
+        <!-- Stations — yellow (elevated) -->
+        <circle cx="190" cy="75" r="6" fill="#F59E0B" stroke="#0d1f3c" stroke-width="1.5"/>
+        <text x="196" y="71" font-size="7" fill="#F59E0B" font-weight="600">14 St</text>
+        <circle cx="100" cy="40" r="6" fill="#F59E0B" stroke="#0d1f3c" stroke-width="1.5"/>
+        <text x="106" y="36" font-size="7" fill="#F59E0B" font-weight="600">Penn</text>
+
+        <!-- Station — red (critical) Times Square -->
+        <circle cx="120" cy="100" r="8" fill="#DC2626" stroke="#ff4444" stroke-width="2" id="tsqDot">
+          <animate attributeName="r" values="8;11;8" dur="1.2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0.6;1" dur="1.2s" repeatCount="indefinite"/>
+        </circle>
+        <text x="128" y="97" font-size="8" fill="#DC2626" font-weight="700">Times Sq</text>
+
+        <!-- Station — orange (high) Grand Central -->
+        <circle cx="185" cy="75" r="7" fill="#F97316" stroke="#0d1f3c" stroke-width="1.5"/>
+        <text x="192" y="72" font-size="7" fill="#F97316" font-weight="600">GCT</text>
+
+        <!-- Officer dots (blue) -->
+        <circle cx="105" cy="95" r="5" fill="#3B9EFF" stroke="white" stroke-width="1.5"/>
+        <text x="92" y="88" font-size="7" fill="#3B9EFF">Officer 1</text>
+        <!-- Deployment line -->
+        <line x1="105" y1="95" x2="120" y2="100" stroke="#3B9EFF" stroke-width="1.5" stroke-dasharray="3" opacity=".8">
+          <animate attributeName="stroke-dashoffset" values="0;-10" dur=".8s" repeatCount="indefinite"/>
+        </line>
+
+        <circle cx="178" cy="82" r="5" fill="#3B9EFF" stroke="white" stroke-width="1.5"/>
+        <text x="165" y="76" font-size="7" fill="#3B9EFF">Officer 2</text>
+        <line x1="178" y1="82" x2="185" y2="75" stroke="#3B9EFF" stroke-width="1.5" stroke-dasharray="3" opacity=".8">
+          <animate attributeName="stroke-dashoffset" values="0;-10" dur=".8s" repeatCount="indefinite"/>
+        </line>
+
+        <!-- Legend -->
+        <circle cx="15" cy="155" r="4" fill="#DC2626"/>
+        <text x="22" y="158" font-size="7" fill="#94A3B8">Critical</text>
+        <circle cx="15" cy="165" r="4" fill="#F97316"/>
+        <text x="22" y="168" font-size="7" fill="#94A3B8">High</text>
+        <circle cx="70" cy="155" r="4" fill="#3B9EFF"/>
+        <text x="77" y="158" font-size="7" fill="#3B9EFF">Officer</text>
+        <circle cx="70" cy="165" r="4" fill="#22C55E"/>
+        <text x="77" y="168" font-size="7" fill="#94A3B8">Safe</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Alert feed -->
+  <div class="panel alert-panel">
+    <div class="panel-hdr">
+      <div class="panel-title"><span class="panel-icon">🔔</span>Live alert feed</div>
+      <div class="panel-badge" style="background:#fee2e2;color:#DC2626" id="alertBadge">3 active</div>
+    </div>
+    <div class="alert-feed" id="alertFeed">
+      <div class="alert-item">
+        <div class="alert-severity" style="background:#DC2626"></div>
+        <div class="alert-body">
+          <div class="alert-title" style="color:#DC2626">⚠ Platform edge proximity · CRITICAL</div>
+          <div class="alert-desc">Individual stationary within 18 inches of platform edge for 47 seconds. Second individual approaching from rear. Deployment recommended immediately.</div>
+          <div class="alert-meta">
+            <div class="alert-time">Just now</div>
+            <div class="alert-station" style="background:#fee2e2;color:#DC2626">Times Sq · Platform B</div>
+            <div class="alert-level" style="background:#DC2626;color:white">LEVEL 4</div>
+          </div>
+        </div>
+      </div>
+      <div class="alert-item">
+        <div class="alert-severity" style="background:#F97316"></div>
+        <div class="alert-body">
+          <div class="alert-title" style="color:#F97316">🎒 Unattended bag detected · HIGH</div>
+          <div class="alert-desc">Bag stationary on bench for 4 min 22 sec. Owner not visible in frame. No movement detected. Adjacent passengers moving away.</div>
+          <div class="alert-meta">
+            <div class="alert-time">2 min ago</div>
+            <div class="alert-station" style="background:#fff7ed;color:#F97316">Grand Central · Platform 4</div>
+            <div class="alert-level" style="background:#F97316;color:white">LEVEL 3</div>
+          </div>
+        </div>
+      </div>
+      <div class="alert-item">
+        <div class="alert-severity" style="background:#F59E0B"></div>
+        <div class="alert-body">
+          <div class="alert-title" style="color:#F59E0B">👁 Loitering pattern · ELEVATED</div>
+          <div class="alert-desc">Single individual crossing entrance zone 4 times in 18 minutes. Masked. No destination behavior. Monitoring escalated.</div>
+          <div class="alert-meta">
+            <div class="alert-time">5 min ago</div>
+            <div class="alert-station" style="background:#fef3c7;color:#92400e">14th St · Union Sq</div>
+            <div class="alert-level" style="background:#F59E0B;color:#000">LEVEL 2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deployment panel -->
+  <div class="panel deploy-panel">
+    <div class="panel-hdr">
+      <div class="panel-title"><span class="panel-icon">🚔</span>Deployment recommendations</div>
+      <div class="panel-badge" style="background:#dbeafe;color:#1d4ed8">2 active</div>
+    </div>
+    <div class="deploy-list" id="deployList">
+      <div class="deploy-item">
+        <div class="deploy-icon" style="background:#fee2e2">🚔</div>
+        <div class="deploy-body">
+          <div class="deploy-title">Officer 1 → Times Square Platform B</div>
+          <div class="deploy-desc">Platform edge proximity · critical · approach from north stairwell · ETA 45 seconds · 2 officers recommended</div>
+          <div class="deploy-action">
+            <button class="deploy-btn" style="background:#DC2626;color:white" onclick="acceptDeploy(this,'Times Square')">Accept · Deploy</button>
+            <button class="deploy-btn" style="background:#1e3a6e;color:#94A3B8" onclick="reviewDeploy(this)">Review</button>
+          </div>
+        </div>
+      </div>
+      <div class="deploy-item">
+        <div class="deploy-icon" style="background:#fff7ed">🚔</div>
+        <div class="deploy-body">
+          <div class="deploy-title">Officer 2 → Grand Central Platform 4</div>
+          <div class="deploy-desc">Unattended bag · high priority · approach from 42nd St entrance · investigate and remove if confirmed</div>
+          <div class="deploy-action">
+            <button class="deploy-btn" style="background:#F97316;color:white" onclick="acceptDeploy(this,'Grand Central')">Accept · Deploy</button>
+            <button class="deploy-btn" style="background:#1e3a6e;color:#94A3B8" onclick="reviewDeploy(this)">Review</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Simulation controls -->
+<div class="sim-bar">
+  <div class="sim-label" id="simLabel">🐬 TrustLens monitoring 15,284 cameras across 472 stations · 3.5M daily riders protected</div>
+  <button class="sim-btn" style="background:#DC2626;color:white" onclick="runBrianThompson()" id="btBtn">▶ Brian Thompson Simulation</button>
+  <button class="sim-btn" style="background:#1e3a6e;color:#94A3B8" onclick="addNewAlert()">+ New Alert</button>
+</div>
+
+<!-- Brian Thompson Timeline -->
+<div class="timeline-panel" id="btPanel">
+  <div class="timeline-hdr">
+    <div class="timeline-title">🎬 Brian Thompson case · Dec 4 2024 · TrustLens reconstruction</div>
+    <button onclick="closeBT()" style="background:transparent;border:none;color:#94A3B8;cursor:pointer;font-size:18px">×</button>
+  </div>
+  <div class="timeline-body" id="btBody">
+    <div class="tl-event pending" id="bt1">
+      <div class="tl-left"><div class="tl-time">5:41 AM</div><div class="tl-line"></div></div>
+      <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;border:2px solid #1e3a6e;background:#0d1f3c"></div>
+      <div class="tl-body">
+        <div class="tl-title" style="color:#64748B">Loitering detected · Hilton Midtown entrance</div>
+        <div class="tl-desc">Individual crossing hotel entrance zone repeatedly. Unusual back-and-forth pattern. No destination behavior.</div>
+      </div>
+    </div>
+    <div class="tl-event pending" id="bt2">
+      <div class="tl-left"><div class="tl-time">6:17 AM</div><div class="tl-line"></div></div>
+      <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;border:2px solid #1e3a6e;background:#0d1f3c"></div>
+      <div class="tl-body">
+        <div class="tl-title" style="color:#64748B">Correlation · Starbucks 6th Ave</div>
+        <div class="tl-desc">Same physical description detected 500m away. Masked individual. Two detections — same subject — 36 minutes apart.</div>
+      </div>
+    </div>
+    <div class="tl-event pending" id="bt3">
+      <div class="tl-left"><div class="tl-time">6:19 AM</div><div class="tl-line"></div></div>
+      <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;border:2px solid #1e3a6e;background:#0d1f3c"></div>
+      <div class="tl-body">
+        <div class="tl-title" style="color:#64748B">Object interaction · 55th St deli</div>
+        <div class="tl-desc">Subject stops at trash pile. Object concealment behavior detected. Third correlated detection. Alert escalating.</div>
+      </div>
+    </div>
+    <div class="tl-event pending" id="bt4">
+      <div class="tl-left"><div class="tl-time">6:30 AM</div><div class="tl-line"></div></div>
+      <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;border:2px solid #1e3a6e;background:#0d1f3c"></div>
+      <div class="tl-body">
+        <div class="tl-title" style="color:#64748B">Static concealment · Hilton entrance</div>
+        <div class="tl-desc">Subject stationary behind vehicle near hotel entrance for 60+ seconds. Four correlated detections. 49 minutes of activity.</div>
+      </div>
+    </div>
+    <div class="tl-event pending" id="bt5">
+      <div class="tl-left"><div class="tl-time">6:44 AM</div></div>
+      <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;border:2px solid #DC2626;background:#0d1f3c"></div>
+      <div class="tl-body">
+        <div class="tl-title" style="color:#DC2626">Shooting · Brian Thompson killed</div>
+        <div class="tl-desc">In the real world — no alert was generated. No officer was deployed. The cameras saw everything. They understood nothing.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var alertCount = 3;
+var deployCount = 2;
+var btRunning = false;
+var btStep = 0;
+
+// ── Alert colors ──
+var colors = {
+  1:{ dot:'#F59E0B', title:'#F59E0B', badge:'#fef3c7', badgeText:'#92400e', level:'#F59E0B', levelText:'#000' },
+  2:{ dot:'#F97316', title:'#F97316', badge:'#fff7ed', badgeText:'#F97316', level:'#F97316', levelText:'#fff' },
+  3:{ dot:'#DC2626', title:'#DC2626', badge:'#fee2e2', badgeText:'#DC2626', level:'#DC2626', levelText:'#fff' }
+};
+
+var newAlerts = [
+  { sev:2, title:'🚶 Suspicious approach · HIGH', desc:'Individual approaching from unusual angle toward stationary person near platform edge. Closing distance without normal social spacing.', time:'Just now', station:'Jay St-MetroTech · A/C/F', level:'LEVEL 3' },
+  { sev:1, title:'👥 Crowd density elevated', desc:'Density crossing 10 people per square meter in 300sqft zone near stairs. Monitoring for compression pattern development.', time:'Just now', station:'Union Sq · L train', level:'LEVEL 2' },
+  { sev:3, title:'🔫 Concealed object detected · CRITICAL', desc:'Individual reaching into waistband repeatedly. Behavior consistent with weapon concealment. Immediate response recommended.', time:'Just now', station:'Atlantic Terminal · B/D/N/Q', level:'LEVEL 4' },
+  { sev:1, title:'🎭 Mask + loitering pattern', desc:'Masked individual lingering near ATM machines for 12 minutes. No transaction behavior. Possible surveillance activity.', time:'Just now', station:'Fulton St · 2/3/4/5', level:'LEVEL 2' }
+];
+var alertIndex = 0;
+
+function addNewAlert() {
+  var a = newAlerts[alertIndex % newAlerts.length];
+  alertIndex++;
+  alertCount++;
+  document.getElementById('alertCount').textContent = alertCount;
+  document.getElementById('alertBadge').textContent = alertCount + ' active';
+
+  var c = colors[a.sev];
+  var html = '<div class="alert-item" style="background:rgba(220,38,38,0.04)">' +
+    '<div class="alert-severity" style="background:' + c.dot + '"></div>' +
+    '<div class="alert-body">' +
+    '<div class="alert-title" style="color:' + c.title + '">' + a.title + '</div>' +
+    '<div class="alert-desc">' + a.desc + '</div>' +
+    '<div class="alert-meta">' +
+    '<div class="alert-time">' + a.time + '</div>' +
+    '<div class="alert-station" style="background:' + c.badge + ';color:' + c.badgeText + '">' + a.station + '</div>' +
+    '<div class="alert-level" style="background:' + c.level + ';color:' + c.levelText + '">' + a.level + '</div>' +
+    '</div></div></div>';
+
+  var feed = document.getElementById('alertFeed');
+  feed.insertAdjacentHTML('afterbegin', html);
+}
+
+function acceptDeploy(btn, location) {
+  var item = btn.closest('.deploy-item');
+  btn.textContent = '✓ Deployed';
+  btn.style.background = '#166634';
+  btn.disabled = true;
+  item.querySelector('.deploy-title').style.color = '#22C55E';
+  deployCount--;
+  document.getElementById('deployCount').textContent = deployCount;
+  showSimToast('🚔 Officer deployed → ' + location);
+}
+
+function reviewDeploy(btn) {
+  showSimToast('📋 Deployment review opened');
+}
+
+function showSimToast(msg) {
+  var existing = document.getElementById('simToast');
+  if(existing) existing.remove();
+  var t = document.createElement('div');
+  t.id = 'simToast';
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#22C55E;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:200;white-space:nowrap;';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 2500);
+}
+
+// ── Brian Thompson simulation ──
+var btColors = ['#F59E0B','#F59E0B','#F97316','#DC2626','#DC2626'];
+var btAlerts = [
+  'LEVEL 1 — Loitering · Monitoring',
+  'LEVEL 2 — Pattern correlation · Escalating',
+  'LEVEL 3 — Three detections · High priority',
+  'LEVEL 4 — CRITICAL · Deploy immediately',
+  '14 minutes early · Officer deployed · Shooting prevented'
+];
+var btTitleColors = ['#F59E0B','#F59E0B','#F97316','#DC2626','#22C55E'];
+var btBadgeColors = [
+  ['#fef3c7','#92400e'],
+  ['#fef3c7','#92400e'],
+  ['#fff7ed','#F97316'],
+  ['#fee2e2','#DC2626'],
+  ['#dcfce7','#166634']
+];
+
+function runBrianThompson() {
+  if(btRunning) return;
+  btRunning = true;
+  btStep = 0;
+  document.getElementById('btPanel').style.display = 'block';
+  document.getElementById('btBtn').textContent = '⏳ Running...';
+  document.getElementById('btBtn').disabled = true;
+
+  // Reset all events
+  for(var i=1; i<=5; i++){
+    var el = document.getElementById('bt'+i);
+    el.classList.add('pending');
+    var dot = el.children[1];
+    dot.style.background = '#0d1f3c';
+    dot.style.borderColor = '#1e3a6e';
+    el.querySelector('.tl-title').style.color = '#64748B';
+    var existing = el.querySelector('.tl-alert');
+    if(existing) existing.remove();
+  }
+
+  runBTStep(1);
+}
+
+function runBTStep(step) {
+  if(step > 5) {
+    btRunning = false;
+    document.getElementById('btBtn').textContent = '▶ Brian Thompson Simulation';
+    document.getElementById('btBtn').disabled = false;
+    return;
+  }
+
+  var el = document.getElementById('bt'+step);
+  el.classList.remove('pending');
+
+  var dot = el.children[1];
+  dot.style.background = btColors[step-1];
+  dot.style.borderColor = btColors[step-1];
+  el.querySelector('.tl-title').style.color = btTitleColors[step-1];
+
+  var badge = document.createElement('div');
+  badge.className = 'tl-alert';
+  badge.style.background = btBadgeColors[step-1][0];
+  badge.style.color = btBadgeColors[step-1][1];
+  badge.textContent = btAlerts[step-1];
+  el.querySelector('.tl-body').appendChild(badge);
+
+  if(step === 4) {
+    showSimToast('🐬 CRITICAL ALERT — 14 min before shooting — Officer deploying NOW');
+    document.getElementById('critCount').textContent = '2';
+  }
+
+  if(step === 5) {
+    el.querySelector('.tl-desc').textContent = 'TrustLens generated a CRITICAL alert at 6:30 AM — 14 minutes before the shooting. Officer deployed. Brian Thompson redirected to secure entrance. The shooting never happens.';
+    showSimToast('✅ Shooting prevented · TrustLens worked');
+  }
+
+  setTimeout(function(){ runBTStep(step+1); }, step === 4 ? 2500 : 1800);
+}
+
+function closeBT() {
+  document.getElementById('btPanel').style.display = 'none';
+  btRunning = false;
+  document.getElementById('btBtn').textContent = '▶ Brian Thompson Simulation';
+  document.getElementById('btBtn').disabled = false;
+}
+
+// ── Live camera cycling ──
+var camScenes = [
+  { location:'Times Sq-42nd St · Platform B · Uptown 1/2/3', threat:'⚠ 2 behaviors flagged', status:'THREAT DETECTED', statusStyle:'background:#fee2e2;color:#DC2626' },
+  { location:'Grand Central · Platform 4 · 4/5/6', threat:'⚠ Unattended bag', status:'MONITORING', statusStyle:'background:#fff7ed;color:#F97316' },
+  { location:'14th St · Union Sq · L train', threat:'👁 Loitering pattern', status:'ELEVATED', statusStyle:'background:#fef3c7;color:#92400e' },
+  { location:'Jay St · MetroTech · A/C/F', threat:'✓ Normal behavior', status:'ALL CLEAR', statusStyle:'background:#dcfce7;color:#166634' },
+];
+var camIndex = 0;
+
+setInterval(function(){
+  camIndex = (camIndex + 1) % camScenes.length;
+  var s = camScenes[camIndex];
+  document.querySelector('.cam-location').textContent = '📍 ' + s.location;
+  document.getElementById('camThreat').textContent = s.threat;
+  document.getElementById('camThreat').style.color = s.threat.includes('✓') ? '#22C55E' : '#DC2626';
+  var badge = document.getElementById('camStatus');
+  badge.textContent = s.status;
+  badge.style.cssText = 'font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;' + s.statusStyle;
+}, 4000);
+
+// ── Pulse camera counter ──
+setInterval(function(){
+  var base = 15284;
+  document.getElementById('camCount').textContent = (base + Math.floor(Math.random()*3)).toLocaleString();
+}, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DolSafe · SafeMap</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{background:#0A1628;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;justify-content:center;min-height:100vh}
+    .phone{width:100%;max-width:390px;display:flex;flex-direction:column;min-height:100vh}
+    @keyframes fadeIn {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse  {0%,100%{opacity:1}50%{opacity:.4}}
+    @keyframes ripple {0%{transform:scale(1);opacity:.5}100%{transform:scale(2.2);opacity:0}}
+    @keyframes spin   {to{transform:rotate(360deg)}}
+
+    .header{background:#0A1628;padding:52px 18px 14px}
+    .header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+    .back-btn{font-size:22px;color:#94A3B8;cursor:pointer}
+    .header-center{text-align:center;flex:1}
+    .header-title{font-size:17px;font-weight:700;color:white}
+    .header-sub{font-size:11px;color:#94A3B8;margin-top:1px}
+    .refresh-btn{font-size:20px;cursor:pointer;color:#94A3B8}
+
+    .pulse-card{margin:0 16px 12px;background:linear-gradient(135deg,#0d2040,#122245);border-radius:16px;padding:14px;border:1px solid #1e3a6e;display:flex;align-items:center;gap:14px;animation:fadeIn .4s ease}
+    .pulse-ring-wrap{position:relative;flex-shrink:0}
+    .pulse-ripple{position:absolute;top:0;left:0;width:72px;height:72px;border-radius:50%;animation:ripple 2s infinite}
+    .pulse-ring{width:72px;height:72px;border-radius:50%;border:3px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:2}
+    .pulse-num{font-size:24px;font-weight:700;line-height:1}
+    .pulse-lbl{font-size:9px;color:rgba(255,255,255,.6);margin-top:2px}
+    .pulse-info{flex:1}
+    .pulse-status{font-size:14px;font-weight:700;color:white;margin-bottom:3px}
+    .pulse-desc{font-size:11px;color:#94A3B8;line-height:1.5;margin-bottom:5px}
+    .pulse-updated{font-size:10px;color:#64748B;display:flex;align-items:center;gap:4px}
+    .pulse-dot{width:6px;height:6px;border-radius:50%;animation:pulse 1.5s infinite}
+
+    .loc-tabs{display:flex;gap:6px;padding:0 16px 10px;overflow-x:auto}
+    .loc-tabs::-webkit-scrollbar{height:0}
+    .loc-tab{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #1e3a6e;color:#94A3B8;background:transparent;transition:all .2s;white-space:nowrap}
+    .loc-tab.active{background:#1a6fc4;border-color:#3B9EFF;color:white}
+    .tab-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .add-tab{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px dashed #1e3a6e;color:#3B9EFF;background:transparent;white-space:nowrap}
+
+    .map-wrap{margin:0 16px 12px;border-radius:16px;overflow:hidden;border:1px solid #1e3a6e;position:relative}
+    #realMap{height:240px;width:100%;background:#0d1520;z-index:1}
+    .leaflet-container{background:#0d1520 !important}
+    .leaflet-control-zoom a{background:#0d1f3c !important;color:#3B9EFF !important;border-color:#1e3a6e !important}
+    .leaflet-control-attribution{display:none !important}
+    .map-loading{position:absolute;top:0;left:0;right:0;height:240px;background:rgba(10,22,40,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:1000}
+    .map-spinner{width:32px;height:32px;border-radius:50%;border:3px solid #1e3a6e;border-top-color:#3B9EFF;animation:spin .8s linear infinite}
+    .map-loading-text{font-size:12px;color:#94A3B8}
+    .map-footer{background:#0d1f3c;padding:8px 12px;display:flex;align-items:center;justify-content:space-between}
+    .map-location{font-size:10px;color:#94A3B8}
+    .map-legend{display:flex;gap:8px}
+    .legend-item{display:flex;align-items:center;gap:3px;font-size:9px;color:#94A3B8}
+    .legend-dot{width:7px;height:7px;border-radius:50%}
+
+    .scroll{flex:1;padding:0 16px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    .slbl{font-size:10px;font-weight:600;color:#94A3B8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;margin-top:4px}
+
+    .alert-banner{border-radius:12px;padding:11px 13px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;border:1px solid;cursor:pointer;animation:slideUp .4s ease}
+    .ab-icon{font-size:18px;flex-shrink:0}
+    .ab-body{flex:1}
+    .ab-title{font-size:12px;font-weight:600;margin-bottom:2px}
+    .ab-desc{font-size:10px;line-height:1.5;opacity:.85}
+    .ab-meta{display:flex;align-items:center;gap:6px;margin-top:4px}
+    .ab-time{font-size:9px;opacity:.6}
+    .ab-dist{font-size:9px;font-weight:600;padding:1px 7px;border-radius:10px;background:rgba(255,255,255,.1)}
+
+    .place-card{background:#122245;border-radius:12px;padding:12px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px;cursor:pointer;border:1px solid transparent;transition:border-color .15s}
+    .place-card:active{border-color:#3B9EFF}
+    .place-card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .place-card-body{flex:1}
+    .place-card-name{font-size:12px;font-weight:600;color:white;margin-bottom:2px}
+    .place-card-addr{font-size:10px;color:#94A3B8}
+    .place-card-pulse{font-size:11px;font-weight:700;flex-shrink:0}
+    .place-card-del{font-size:16px;color:#DC2626;cursor:pointer;flex-shrink:0;padding:4px}
+
+    .route-card{background:#122245;border-radius:12px;padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px;cursor:pointer;border:1px solid transparent;transition:all .15s}
+    .route-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+    .route-body{flex:1}
+    .route-name{font-size:12px;font-weight:600;color:white;margin-bottom:2px}
+    .route-desc{font-size:10px;color:#94A3B8}
+    .route-time{font-size:11px;font-weight:600;flex-shrink:0}
+
+    .report-item{background:#122245;border-radius:12px;padding:11px 13px;margin-bottom:7px;display:flex;align-items:flex-start;gap:10px}
+    .ri-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+    .ri-body{flex:1}
+    .ri-title{font-size:12px;font-weight:600;color:white;margin-bottom:2px}
+    .ri-desc{font-size:10px;color:#94A3B8;line-height:1.4}
+    .ri-meta{display:flex;align-items:center;gap:6px;margin-top:4px}
+    .ri-time{font-size:9px;color:#64748B}
+    .ri-dist{font-size:9px;font-weight:600;color:#3B9EFF}
+    .ri-badge{font-size:9px;font-weight:600;padding:1px 6px;border-radius:10px;background:#dcfce7;color:#166634}
+
+    /* Modal */
+    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;align-items:flex-end;justify-content:center}
+    .modal{background:#0d1f3c;border-radius:20px 20px 0 0;padding:20px 18px 40px;width:100%;max-width:390px;border:1px solid #1e3a6e;animation:slideUp .3s ease;position:relative;z-index:2001}
+    .modal-title{font-size:16px;font-weight:700;color:white;margin-bottom:4px}
+    .modal-sub{font-size:12px;color:#94A3B8;margin-bottom:16px}
+    .modal-field{margin-bottom:12px;position:relative}
+    .modal-label{font-size:11px;font-weight:600;color:#94A3B8;margin-bottom:6px;display:block}
+    .modal-input{width:100%;background:#122245;border:1px solid #1e3a6e;border-radius:10px;padding:11px 13px;font-size:13px;color:white;outline:none;transition:border-color .15s}
+    .modal-input:focus{border-color:#3B9EFF}
+    .modal-input::placeholder{color:#4a6080}
+
+    /* Autocomplete dropdown */
+    .autocomplete-list{position:absolute;top:100%;left:0;right:0;background:#0d1f3c;border:1px solid #3B9EFF;border-radius:10px;margin-top:4px;z-index:3000;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+    .autocomplete-item{padding:10px 13px;font-size:12px;color:white;cursor:pointer;border-bottom:1px solid #1e3a6e;display:flex;align-items:flex-start;gap:8px}
+    .autocomplete-item:last-child{border-bottom:none}
+    .autocomplete-item:hover{background:#122245}
+    .autocomplete-item .ac-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+    .autocomplete-item .ac-main{font-weight:600;margin-bottom:2px}
+    .autocomplete-item .ac-sub{font-size:10px;color:#94A3B8}
+    .autocomplete-loading{padding:12px 13px;font-size:11px;color:#94A3B8;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px}
+
+    .icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:4px}
+    .icon-opt{width:100%;aspect-ratio:1;border-radius:8px;background:#122245;border:2px solid transparent;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .15s}
+    .icon-opt.selected{border-color:#3B9EFF;background:#0d2040}
+    .modal-btns{display:flex;gap:8px;margin-top:14px}
+    .modal-save{flex:2;padding:12px;background:#3B9EFF;border:none;border-radius:12px;font-size:13px;font-weight:700;color:white;cursor:pointer}
+    .modal-cancel{flex:1;padding:12px;background:transparent;border:1px solid #1e3a6e;border-radius:12px;font-size:13px;color:#94A3B8;cursor:pointer}
+
+    .bottom-nav{background:#0A1628;border-top:1px solid #1e3a6e;display:flex;padding:10px 0 20px;position:sticky;bottom:0}
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:#94A3B8;font-size:20px}
+    .nav-item.active{color:#3B9EFF}
+    .nav-lbl{font-size:10px}
+    .nav-sos{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+    .sos-btn{width:46px;height:46px;border-radius:50%;background:#DC2626;display:flex;align-items:center;justify-content:center;font-size:22px;margin-top:-16px;box-shadow:0 0 0 3px #0A1628}
+    .sos-lbl{font-size:10px;font-weight:700;color:#DC2626}
+
+    .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:#22C55E;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:5000}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  </style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="header">
+    <div class="header-row">
+      <div class="back-btn" onclick="window.location.href='index.html'">←</div>
+      <div class="header-center">
+        <div class="header-title">🗺️ SafeMap</div>
+        <div class="header-sub" id="headerSub">Getting your location...</div>
+      </div>
+      <div class="refresh-btn" onclick="refreshAll()">↻</div>
+    </div>
+  </div>
+
+  <div class="pulse-card">
+    <div class="pulse-ring-wrap">
+      <div class="pulse-ripple" id="pulseRipple"></div>
+      <div class="pulse-ring" id="pulseRing">
+        <div class="pulse-num" id="pulseNum">—</div>
+        <div class="pulse-lbl">SafePulse</div>
+      </div>
+    </div>
+    <div class="pulse-info">
+      <div class="pulse-status" id="pulseStatus">Loading...</div>
+      <div class="pulse-desc"   id="pulseDesc">Getting safety intelligence for your location.</div>
+      <div class="pulse-updated"><div class="pulse-dot" id="pulseDot"></div><span id="pulseTime">—</span></div>
+    </div>
+  </div>
+
+  <div class="loc-tabs" id="locTabs">
+    <div class="loc-tab active" id="tab-current" onclick="switchTab('current')">
+      <div class="tab-dot" style="background:#3B9EFF"></div>📍 Current
+    </div>
+    <div class="add-tab" onclick="openAddModal()">+ Add place</div>
+  </div>
+
+  <div class="map-wrap">
+    <div id="realMap"></div>
+    <div class="map-loading" id="mapLoading">
+      <div class="map-spinner"></div>
+      <div class="map-loading-text">Loading map...</div>
+    </div>
+    <div class="map-footer">
+      <div class="map-location" id="mapFooterLoc">📍 Detecting location...</div>
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#3B9EFF"></div>You</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22C55E"></div>Place</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#DC2626"></div>Alert</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll">
+
+    <div class="slbl">My places</div>
+    <div id="placeCards"></div>
+    <button onclick="openAddModal()" style="width:100%;padding:11px;background:transparent;border:1px dashed #1e3a6e;border-radius:12px;font-size:12px;font-weight:600;color:#3B9EFF;cursor:pointer;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px">
+      + Add a place · Home · Work · School · Gym
+    </button>
+
+    <div id="safetyTipContainer"></div>
+    <div class="slbl" id="alertsLabel">Active alerts near you</div>
+    <div id="alertsContainer"><div style="background:#122245;border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px"><div style="font-size:20px">🐬</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:white;margin-bottom:3px">Loading local intelligence...</div><div style="font-size:10px;color:#94A3B8">Scanning your area</div></div><div style="width:16px;height:16px;border-radius:50%;border:2px solid #3B9EFF;border-top-color:transparent;animation:spin .8s linear infinite"></div></div></div>
+
+    <div class="slbl">Safe routes from here</div>
+    <div id="routesContainer"><div style="background:#122245;border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px"><div style="font-size:20px">🗺️</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:white;margin-bottom:3px">Finding safe routes...</div><div style="font-size:10px;color:#94A3B8">Based on your location</div></div><div style="width:16px;height:16px;border-radius:50%;border:2px solid #3B9EFF;border-top-color:transparent;animation:spin .8s linear infinite"></div></div></div>
+
+    <div class="slbl">Community reports nearby</div>
+    <div id="reportsContainer"><div style="background:#122245;border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px"><div style="font-size:20px">📋</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:white;margin-bottom:3px">Loading community reports...</div><div style="font-size:10px;color:#94A3B8">From DolSafe users nearby</div></div><div style="width:16px;height:16px;border-radius:50%;border:2px solid #3B9EFF;border-top-color:transparent;animation:spin .8s linear infinite"></div></div></div>
+
+    <div style="margin:10px 0 100px">
+      <button onclick="window.location.href='report.html'" style="width:100%;padding:13px;background:#122245;border:1px solid #1e3a6e;border-radius:12px;font-size:13px;font-weight:600;color:#3B9EFF;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        🐬 See something nearby? Say something.
+      </button>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="nav-item" onclick="window.location.href='index.html'"><span>🏠</span><span class="nav-lbl">Home</span></div>
+    <div class="nav-item active"><span>🗺️</span><span class="nav-lbl">SafeMap</span></div>
+    <div class="nav-sos"><div class="sos-btn" onclick="window.location.href='sos.html'">⚠</div><span class="sos-lbl">SOS</span></div>
+    <div class="nav-item" onclick="window.location.href='report.html'"><span>📋</span><span class="nav-lbl">Report</span></div>
+    <div class="nav-item"><span>👤</span><span class="nav-lbl">Profile</span></div>
+  </nav>
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- Add place modal -->
+<div class="modal-overlay" id="addModal" style="display:none" onclick="if(event.target===this)closeAddModal()">
+  <div class="modal">
+    <div class="modal-title">📍 Add a place</div>
+    <div class="modal-sub">Save locations for quick safety checks</div>
+
+    <div class="modal-field">
+      <label class="modal-label">Place name</label>
+      <input class="modal-input" id="placeName" type="text" placeholder="e.g. Home, Work, Mom's house...">
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-label">Search address</label>
+      <input class="modal-input" id="placeAddr" type="text" placeholder="Start typing an address..." autocomplete="off" oninput="onAddrInput(this.value)" onfocus="onAddrInput(this.value)">
+      <div class="autocomplete-list" id="acList" style="display:none"></div>
+    </div>
+
+    <!-- Hidden fields set by autocomplete selection -->
+    <input type="hidden" id="placeLat">
+    <input type="hidden" id="placeLng">
+    <input type="hidden" id="placeDisplay">
+
+    <div class="modal-field">
+      <label class="modal-label">Choose an icon</label>
+      <div class="icon-grid">
+        <div class="icon-opt selected" onclick="selectIcon(this,'🏠')">🏠</div>
+        <div class="icon-opt" onclick="selectIcon(this,'💼')">💼</div>
+        <div class="icon-opt" onclick="selectIcon(this,'🏫')">🏫</div>
+        <div class="icon-opt" onclick="selectIcon(this,'🏋️')">🏋️</div>
+        <div class="icon-opt" onclick="selectIcon(this,'❤️')">❤️</div>
+        <div class="icon-opt" onclick="selectIcon(this,'👩')">👩</div>
+        <div class="icon-opt" onclick="selectIcon(this,'👴')">👴</div>
+        <div class="icon-opt" onclick="selectIcon(this,'🏥')">🏥</div>
+        <div class="icon-opt" onclick="selectIcon(this,'⛪')">⛪</div>
+        <div class="icon-opt" onclick="selectIcon(this,'🛒')">🛒</div>
+        <div class="icon-opt" onclick="selectIcon(this,'☕')">☕</div>
+        <div class="icon-opt" onclick="selectIcon(this,'📍')">📍</div>
+      </div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="modal-save"   onclick="savePlace()">Save place</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var CLAUDE_KEY   = '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';
+var map          = null;
+var userMarker   = null;
+var placeLayerGroup = null;
+var currentLat   = null;
+var currentLng   = null;
+var currentCity  = '';
+var activeTab    = 'current';
+var selectedIcon = '🏠';
+var savedPlaces  = JSON.parse(localStorage.getItem('dolsafe_places') || '[]');
+var acTimer      = null;
+var acResults    = [];
+
+var iconColors = {
+  '🏠':'#3B9EFF','💼':'#F59E0B','🏫':'#8B5CF6','🏋️':'#22C55E',
+  '❤️':'#DC2626','👩':'#EC4899','👴':'#EF9F27','🏥':'#DC2626',
+  '⛪':'#8B5CF6','🛒':'#22C55E','☕':'#92400e','📍':'#3B9EFF'
+};
+
+// ── Init ──
+window.onload = function() {
+  initMap();
+  renderPlaceCards();
+  renderPlaceTabs();
+  getLocation();
+};
+
+// ── Leaflet map init ──
+function initMap() {
+  map = L.map('realMap', {
+    zoomControl: true,
+    attributionControl: false
+  }).setView([40.7580, -73.9855], 14);
+
+  // Dark CartoDB tiles
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd'
+  }).addTo(map);
+
+  // Layer group for place markers
+  placeLayerGroup = L.layerGroup().addTo(map);
+
+  map.whenReady(function() {
+    document.getElementById('mapLoading').style.display = 'none';
+  });
+
+  setTimeout(function() {
+    document.getElementById('mapLoading').style.display = 'none';
+  }, 3000);
+}
+
+// ── User marker ──
+function setUserMarker(lat, lng) {
+  if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+  var html =
+    '<div style="position:relative;width:20px;height:20px">' +
+    '<div style="position:absolute;top:0;left:0;width:20px;height:20px;border-radius:50%;background:rgba(59,158,255,.3);animation:ripple 2s infinite"></div>' +
+    '<div style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#3B9EFF;border:3px solid white;box-shadow:0 0 8px rgba(59,158,255,.8)"></div>' +
+    '</div>';
+  userMarker = L.marker([lat, lng], {
+    icon: L.divIcon({ className:'', html:html, iconSize:[20,20], iconAnchor:[10,10] }),
+    zIndexOffset: 1000
+  }).addTo(map);
+  userMarker.bindPopup('<b>📍 You are here</b>');
+}
+
+// ── Place markers ──
+function renderMapPlaceMarkers() {
+  placeLayerGroup.clearLayers();
+  savedPlaces.forEach(function(p) {
+    if (!p.lat || !p.lng) return;
+    var color = p.color || '#3B9EFF';
+    var html =
+      '<div style="background:'+color+';width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.5)">' +
+      p.icon + '</div>';
+    var marker = L.marker([p.lat, p.lng], {
+      icon: L.divIcon({ className:'', html:html, iconSize:[32,32], iconAnchor:[16,32] })
+    });
+    marker.bindPopup('<b>' + p.icon + ' ' + p.name + '</b><br><small style="color:#94A3B8">' + p.address + '</small>');
+    marker.on('click', function() { switchTab(p.id); });
+    placeLayerGroup.addLayer(marker);
+  });
+}
+
+// ── Fly map to location ──
+function flyTo(lat, lng, zoom, label) {
+  map.flyTo([lat, lng], zoom || 15, { animate:true, duration:1.2 });
+  document.getElementById('mapFooterLoc').textContent = '📍 ' + (label || '');
+}
+
+// ── GPS location ──
+function getLocation() {
+  document.getElementById('headerSub').textContent = '📍 Getting your location...';
+  if (!navigator.geolocation) { loadPulse('your area'); generateLocationContent('your area','your area'); return; }
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      currentLat = pos.coords.latitude;
+      currentLng = pos.coords.longitude;
+      setUserMarker(currentLat, currentLng);
+      flyTo(currentLat, currentLng, 15, 'Your location');
+      reverseGeocode(currentLat, currentLng);
+      renderMapPlaceMarkers();
+    },
+    function() {
+      document.getElementById('headerSub').textContent = '📍 Location unavailable';
+      loadPulse('your area');
+      generateLocationContent('your area','your area');
+    },
+    { enableHighAccuracy:true, timeout:8000 }
+  );
+}
+
+function reverseGeocode(lat, lng) {
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng, { headers:{'Accept-Language':'en'} })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var a = d.address || {};
+      var city    = a.city || a.town || a.village || a.county || 'your area';
+      var state   = a.state   || '';
+      var country = a.country || '';
+      // Build exact address from all available fields
+      var houseNum = a.house_number || '';
+      var road     = a.road || a.pedestrian || a.footway || '';
+      var suburb   = a.suburb || a.neighbourhood || a.quarter || '';
+      var city     = a.city || a.town || a.village || a.county || '';
+      var state    = a.state || '';
+      var country  = a.country || '';
+      var postcode = a.postcode || '';
+
+      // Build exact street address
+      var streetAddr = '';
+      if (houseNum && road) streetAddr = houseNum + ' ' + road;
+      else if (road)        streetAddr = road;
+
+      // Full display — most specific to least specific
+      var parts = [];
+      if (streetAddr) parts.push(streetAddr);
+      if (suburb && suburb !== city) parts.push(suburb);
+      if (city)    parts.push(city);
+      if (state)   parts.push(state);
+      if (country && country !== 'United States') parts.push(country);
+
+      var display = parts.length ? parts.join(', ') : (a.display_name || 'your area');
+      var full    = display || 'your area';
+      currentCity = full;
+
+      document.getElementById('headerSub').textContent = '📍 ' + display;
+      flyTo(currentLat, currentLng, 17, display);
+      loadPulse(display);
+      generateLocationContent(full, display);
+    })
+    .catch(function() { loadPulse('your area'); generateLocationContent('your area','your area'); });
+}
+
+// ── Autocomplete ──
+function onAddrInput(val) {
+  clearTimeout(acTimer);
+  var list = document.getElementById('acList');
+  if (!val || val.length < 3) { list.style.display='none'; return; }
+  list.style.display = 'block';
+  list.innerHTML = '<div class="autocomplete-loading"><div style="width:12px;height:12px;border-radius:50%;border:2px solid #3B9EFF;border-top-color:transparent;animation:spin .6s linear infinite"></div> Searching...</div>';
+  acTimer = setTimeout(function() {
+    fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(val)+'&limit=5&addressdetails=1', { headers:{'Accept-Language':'en'} })
+      .then(function(r){ return r.json(); })
+      .then(function(results) {
+        acResults = results;
+        if (!results.length) {
+          list.innerHTML = '<div class="autocomplete-loading">No results found</div>';
+          return;
+        }
+        list.innerHTML = '';
+        results.forEach(function(r, i) {
+          var addr   = r.address || {};
+          var main   = addr.house_number ? (addr.house_number + ' ' + (addr.road||'')) : (addr.road || r.display_name.split(',')[0]);
+          var sub    = r.display_name.split(',').slice(1,3).join(',').trim();
+          var typeIcon = getPlaceTypeIcon(addr);
+          var item = document.createElement('div');
+          item.className = 'autocomplete-item';
+          item.innerHTML =
+            '<div class="ac-icon">'+typeIcon+'</div>'+
+            '<div><div class="ac-main">'+main+'</div><div class="ac-sub">'+sub+'</div></div>';
+          item.onclick = function() {
+            document.getElementById('placeAddr').value    = r.display_name;
+            document.getElementById('placeLat').value     = r.lat;
+            document.getElementById('placeLng').value     = r.lon;
+            document.getElementById('placeDisplay').value = r.display_name;
+            list.style.display = 'none';
+            // Preview location on map
+            flyTo(parseFloat(r.lat), parseFloat(r.lon), 16, main);
+            showToast('📍 ' + main + ' — tap Save to confirm');
+          };
+          list.appendChild(item);
+        });
+      })
+      .catch(function() {
+        list.innerHTML = '<div class="autocomplete-loading">Search unavailable</div>';
+      });
+  }, 400);
+}
+
+function getPlaceTypeIcon(addr) {
+  if (addr.amenity === 'hospital' || addr.amenity === 'clinic') return '🏥';
+  if (addr.amenity === 'school' || addr.amenity === 'university') return '🏫';
+  if (addr.amenity === 'restaurant' || addr.amenity === 'cafe') return '☕';
+  if (addr.amenity === 'gym' || addr.leisure === 'fitness_centre') return '🏋️';
+  if (addr.amenity === 'place_of_worship') return '⛪';
+  if (addr.shop) return '🛒';
+  if (addr.office) return '💼';
+  if (addr.road && addr.house_number) return '🏠';
+  return '📍';
+}
+
+// ── Switch tab ──
+function switchTab(tabId) {
+  activeTab = tabId;
+
+  // Update tab styles
+  document.querySelectorAll('.loc-tab').forEach(function(t){
+    t.classList.remove('active');
+    t.style.background  = 'transparent';
+    t.style.borderColor = '#1e3a6e';
+    t.style.color       = '#94A3B8';
+  });
+  var activeEl = document.getElementById('tab-' + tabId);
+  if (activeEl) {
+    activeEl.classList.add('active');
+    activeEl.style.background  = '#1a6fc4';
+    activeEl.style.borderColor = '#3B9EFF';
+    activeEl.style.color       = 'white';
+  }
+
+  if (tabId === 'current') {
+    if (currentLat && currentLng) {
+      flyTo(currentLat, currentLng, 15, currentCity || 'Your location');
+    }
+    document.getElementById('headerSub').textContent   = '📍 ' + (currentCity || 'Your location');
+    document.getElementById('alertsLabel').textContent = 'Active alerts near you';
+    loadPulse(currentCity || 'your area');
+    generateLocationContent(currentCity || 'your area', currentCity || 'your area');
+    return;
+  }
+
+  // Find saved place
+  var place = savedPlaces.find(function(p){ return p.id === tabId; });
+  if (!place) return;
+
+  // Fly map to this place
+  if (place.lat && place.lng) {
+    flyTo(place.lat, place.lng, 16, place.name + ' · ' + place.address);
+    // Open popup
+    placeLayerGroup.eachLayer(function(layer) {
+      var pos = layer.getLatLng();
+      if (Math.abs(pos.lat - place.lat) < 0.0001 && Math.abs(pos.lng - place.lng) < 0.0001) {
+        layer.openPopup();
+      }
+    });
+  } else {
+    showToast('📍 No coordinates for ' + place.name);
+  }
+
+  // Update pulse
+  var score = getPlaceScore(place.name);
+  var color = score>=80?'#22C55E':score>=70?'#F59E0B':'#F97316';
+  document.getElementById('pulseNum').textContent    = score;
+  document.getElementById('pulseNum').style.color    = color;
+  document.getElementById('pulseStatus').textContent = getSafetyLabel(score) + ' · ' + place.name;
+  document.getElementById('pulseDesc').textContent   = getSafetyDesc(score) + ' — ' + place.address;
+  document.getElementById('pulseRing').style.borderColor  = color;
+  document.getElementById('pulseRipple').style.background = hexToRgba(color, .3);
+  document.getElementById('pulseDot').style.background    = color;
+  document.getElementById('pulseTime').textContent = 'Updated just now';
+  document.getElementById('headerSub').textContent   = place.icon + ' ' + place.name;
+  document.getElementById('alertsLabel').textContent = 'Active alerts near ' + place.name;
+
+  generateLocationContent(place.address, place.name + ' · ' + place.address);
+}
+
+function hexToRgba(hex, alpha) {
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return 'rgba('+r+','+g+','+b+','+alpha+')';
+}
+
+// ── Pulse ──
+function loadPulse(city) {
+  var h = new Date().getHours();
+  var p;
+  if      (h<6)  p={score:91,status:'Very calm',     desc:'Minimal activity. All routes clear.',              color:'#22C55E',rBg:'rgba(34,197,94,.15)',  rip:'rgba(34,197,94,.3)'  };
+  else if (h<9)  p={score:72,status:'Morning rush',  desc:'Elevated transit activity near commuter hubs.',    color:'#F59E0B',rBg:'rgba(245,158,11,.15)', rip:'rgba(245,158,11,.3)' };
+  else if (h<12) p={score:84,status:'Calm',          desc:'Normal activity. No active alerts.',               color:'#22C55E',rBg:'rgba(34,197,94,.15)',  rip:'rgba(34,197,94,.3)'  };
+  else if (h<14) p={score:78,status:'Moderate',      desc:'Busy lunch hour in commercial areas.',             color:'#F59E0B',rBg:'rgba(245,158,11,.15)', rip:'rgba(245,158,11,.3)' };
+  else if (h<17) p={score:82,status:'Calm',          desc:'Afternoon activity normal.',                       color:'#22C55E',rBg:'rgba(34,197,94,.15)',  rip:'rgba(34,197,94,.3)'  };
+  else if (h<20) p={score:65,status:'Evening rush',  desc:'Peak transit hours. Stay aware.',                  color:'#F97316',rBg:'rgba(249,115,22,.15)', rip:'rgba(249,115,22,.3)' };
+  else if (h<23) p={score:70,status:'Evening',       desc:'Entertainment areas busy.',                        color:'#F59E0B',rBg:'rgba(245,158,11,.15)', rip:'rgba(245,158,11,.3)' };
+  else           p={score:85,status:'Late night',    desc:'Activity winding down.',                           color:'#22C55E',rBg:'rgba(34,197,94,.15)',  rip:'rgba(34,197,94,.3)'  };
+  document.getElementById('pulseNum').textContent    = p.score;
+  document.getElementById('pulseNum').style.color    = p.color;
+  document.getElementById('pulseStatus').textContent = p.status+(city?' · '+city:'');
+  document.getElementById('pulseDesc').textContent   = p.desc;
+  document.getElementById('pulseRing').style.borderColor  = p.color;
+  document.getElementById('pulseRing').style.background   = p.rBg;
+  document.getElementById('pulseRipple').style.background = p.rip;
+  document.getElementById('pulseDot').style.background    = p.color;
+  document.getElementById('pulseTime').textContent = 'Updated '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── Claude API ──
+function generateLocationContent(city, display) {
+  showLoadingSpinners();
+  var h=new Date().getHours(), timeStr=h<12?'morning':h<17?'afternoon':'evening';
+  var dayStr=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
+  var prompt=
+    'You are DolSafe safety AI. Generate hyperlocal safety content for: '+city+'. '+
+    'Time: '+timeStr+' on '+dayStr+'. '+
+    'Return ONLY valid JSON — no markdown. Structure: '+
+    '{"alerts":[{"level":"red|orange|yellow|green","icon":"emoji","title":"title","desc":"one sentence","time":"X min ago","dist":"0.X mi"},{"level":"green|yellow","icon":"emoji","title":"title","desc":"one sentence","time":"X min ago","dist":"0.X mi"}],'+
+    '"routes":[{"level":"green","name":"Via [real street name] · Recommended","desc":"safety note","time":"X min"},{"level":"yellow","name":"Via [real street] · Moderate","desc":"safety note","time":"X min"},{"level":"red","name":"Via [real street] · Avoid","desc":"reason","time":"Avoid"}],'+
+    '"reports":[{"icon":"emoji","bg":"#fef3c7","title":"title","desc":"one sentence","time":"X min ago","dist":"0.X mi","badge":"✓ Verified"},{"icon":"emoji","bg":"#dbeafe","title":"title","desc":"one sentence","time":"X min ago","dist":"0.X mi","badge":"✓ Verified"},{"icon":"emoji","bg":"#dcfce7","title":"title","desc":"one sentence","time":"X hr ago","dist":"0.X mi","badge":"✓ Resolved"}],'+
+    '"safetyTip":"practical tip for '+city+'"}';
+
+  fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':CLAUDE_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:900,messages:[{role:'user',content:prompt}]})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!data.content||!data.content[0]){showFallback(city);return;}
+    var raw=data.content[0].text.trim().replace(/```json|```/g,'').trim();
+    try{
+      var c=JSON.parse(raw);
+      renderAlerts(c.alerts||[]);
+      renderRoutes(c.routes||[]);
+      renderReports(c.reports||[]);
+      if(c.safetyTip) renderSafetyTip(c.safetyTip, display||city);
+    }catch(e){showFallback(city);}
+  })
+  .catch(function(){showFallback(city);});
+}
+
+function showLoadingSpinners() {
+  var s='<div style="background:#122245;border-radius:12px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:10px"><div style="font-size:20px">🐬</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:white;margin-bottom:3px">Loading...</div><div style="font-size:10px;color:#94A3B8">Fetching local data</div></div><div style="width:16px;height:16px;border-radius:50%;border:2px solid #3B9EFF;border-top-color:transparent;animation:spin .8s linear infinite"></div></div>';
+  document.getElementById('alertsContainer').innerHTML=s;
+  document.getElementById('routesContainer').innerHTML=s;
+  document.getElementById('reportsContainer').innerHTML=s;
+  document.getElementById('safetyTipContainer').innerHTML='';
+}
+
+function renderAlerts(alerts){
+  var clr={red:{bg:'#fee2e2',border:'#fca5a5',text:'#DC2626'},orange:{bg:'#fff7ed',border:'#fed7aa',text:'#F97316'},yellow:{bg:'#fef3c7',border:'#fcd34d',text:'#92400e'},green:{bg:'#F0FDF4',border:'#86efac',text:'#166634'}};
+  var c=document.getElementById('alertsContainer');
+  if(!alerts.length){c.innerHTML='<div style="background:#F0FDF4;border:1px solid #86efac;border-radius:12px;padding:12px 14px;font-size:12px;color:#166634;display:flex;align-items:center;gap:8px"><span style="font-size:18px">✅</span> No active alerts in your area. All clear.</div>';return;}
+  c.innerHTML='';
+  alerts.forEach(function(a){
+    var col=clr[a.level]||clr.yellow;
+    var d=document.createElement('div');
+    d.className='alert-banner';d.style.cssText='background:'+col.bg+';border-color:'+col.border;
+    d.onclick=function(){showToast('📍 '+a.title);};
+    d.innerHTML='<div class="ab-icon">'+(a.icon||'⚠️')+'</div><div class="ab-body"><div class="ab-title" style="color:'+col.text+'">'+a.title+'</div><div class="ab-desc" style="color:'+col.text+'">'+a.desc+'</div><div class="ab-meta"><div class="ab-time" style="color:'+col.text+'">'+(a.time||'')+'</div><div class="ab-dist">'+(a.dist||'')+'</div></div></div>';
+    c.appendChild(d);
+  });
+}
+
+function renderRoutes(routes){
+  var icons={green:'🟢',yellow:'🟡',red:'🔴'};var colors={green:'#22C55E',yellow:'#F59E0B',red:'#DC2626'};var bgs={green:'#dcfce7',yellow:'#fef3c7',red:'#fee2e2'};
+  var c=document.getElementById('routesContainer');c.innerHTML='';
+  routes.forEach(function(r){
+    var d=document.createElement('div');d.className='route-card';
+    d.onclick=function(){if(r.level==='red'){showToast('⚠ Route not recommended');return;}startRoute(r.name,r.level,r.desc);};
+    d.innerHTML='<div class="route-icon" style="background:'+bgs[r.level]+'">'+icons[r.level]+'</div><div class="route-body"><div class="route-name">'+r.name+'</div><div class="route-desc">'+r.desc+'</div></div><div class="route-time" style="color:'+colors[r.level]+'">'+r.time+'</div>';
+    c.appendChild(d);
+  });
+}
+
+function renderReports(reports){
+  var c=document.getElementById('reportsContainer');c.innerHTML='';
+  reports.forEach(function(r){
+    var d=document.createElement('div');d.className='report-item';
+    d.innerHTML='<div class="ri-icon" style="background:'+(r.bg||'#fef3c7')+'">'+(r.icon||'📋')+'</div><div class="ri-body"><div class="ri-title">'+r.title+'</div><div class="ri-desc">'+r.desc+'</div><div class="ri-meta"><div class="ri-time">'+(r.time||'')+'</div><div class="ri-dist">'+(r.dist||'')+'</div><div class="ri-badge">'+(r.badge||'✓ Verified')+'</div></div></div>';
+    c.appendChild(d);
+  });
+}
+
+function renderSafetyTip(tip,city){
+  document.getElementById('safetyTipContainer').innerHTML='<div style="background:#0d2040;border:1px solid #3B9EFF;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px"><div style="font-size:20px;flex-shrink:0">🐬</div><div><div style="font-size:11px;font-weight:600;color:#3B9EFF;margin-bottom:3px">Safety tip · '+city+'</div><div style="font-size:11px;color:#e2e8f0;line-height:1.55">'+tip+'</div></div></div>';
+}
+
+function showFallback(city){
+  renderAlerts([{level:'green',icon:'✅',title:'No active alerts · '+city,desc:'No incidents reported right now.',time:'Just now',dist:'<1 mi'}]);
+  renderRoutes([{level:'green',name:'Main street · Recommended',desc:'Well-lit and monitored',time:'—'},{level:'yellow',name:'Side street · Moderate',desc:'Use caution after dark',time:'—'},{level:'red',name:'Avoid poorly-lit areas',desc:'Stay on main streets',time:'Avoid'}]);
+  renderReports([{icon:'🐬',bg:'#0d2040',title:'DolSafe active · '+city,desc:'Community reporting is active. Be the first to report something you see.',time:'Now',dist:'—',badge:'✓ Active'}]);
+}
+
+// ── Saved places ──
+function saveToStorage(){ localStorage.setItem('dolsafe_places',JSON.stringify(savedPlaces)); }
+
+function renderPlaceCards(){
+  var c=document.getElementById('placeCards');c.innerHTML='';
+  if(!savedPlaces.length){c.innerHTML='<div style="font-size:12px;color:#64748B;text-align:center;padding:8px 0 4px">No saved places yet. Add your home, work, or other key locations.</div>';return;}
+  savedPlaces.forEach(function(p,i){
+    var score=getPlaceScore(p.name);var color=score>=80?'#22C55E':score>=70?'#F59E0B':'#F97316';
+    var d=document.createElement('div');d.className='place-card';
+    d.onclick=function(){switchTab(p.id);};
+    d.innerHTML='<div class="place-card-icon" style="background:'+p.color+'22">'+p.icon+'</div><div class="place-card-body"><div class="place-card-name">'+p.name+'</div><div class="place-card-addr">'+p.address+'</div></div><div class="place-card-pulse" style="color:'+color+'">'+score+'</div><div class="place-card-del" onclick="event.stopPropagation();deletePlace('+i+')">✕</div>';
+    c.appendChild(d);
+  });
+}
+
+function renderPlaceTabs(){
+  var tabs=document.getElementById('locTabs');
+  tabs.querySelectorAll('.place-tab').forEach(function(t){t.remove();});
+  var addBtn=tabs.querySelector('.add-tab');
+  savedPlaces.forEach(function(p){
+    var d=document.createElement('div');d.className='loc-tab place-tab';d.id='tab-'+p.id;
+    d.onclick=function(){switchTab(p.id);};
+    d.innerHTML='<div class="tab-dot" style="background:'+p.color+'"></div>'+p.icon+' '+p.name;
+    tabs.insertBefore(d,addBtn);
+  });
+}
+
+function getPlaceScore(name){
+  var h=new Date().getHours();
+  var base=h<6?91:h<9?72:h<12?84:h<14?78:h<17?82:h<20?65:70;
+  return Math.min(99,Math.max(50,base+((name.charCodeAt(0)||0)%10)-5));
+}
+function getSafetyLabel(s){return s>=85?'Very calm':s>=75?'Calm':s>=65?'Moderate':'Elevated';}
+function getSafetyDesc(s){return s>=85?'No active alerts. All routes clear.':s>=75?'Normal activity. Safe routes available.':s>=65?'Some activity nearby. Stay aware.':'Elevated activity. Avoid certain areas.';}
+
+function deletePlace(i){
+  var name=savedPlaces[i].name;
+  savedPlaces.splice(i,1);saveToStorage();
+  renderPlaceCards();renderPlaceTabs();renderMapPlaceMarkers();
+  switchTab('current');showToast('🗑 '+name+' removed');
+}
+
+// ── Add place modal ──
+function openAddModal(){
+  document.getElementById('addModal').style.display='flex';
+  document.getElementById('placeName').value='';
+  document.getElementById('placeAddr').value='';
+  document.getElementById('placeLat').value='';
+  document.getElementById('placeLng').value='';
+  document.getElementById('placeDisplay').value='';
+  document.getElementById('acList').style.display='none';
+  selectedIcon='🏠';
+  document.querySelectorAll('.icon-opt').forEach(function(o){o.classList.remove('selected');});
+  document.querySelectorAll('.icon-opt')[0].classList.add('selected');
+  setTimeout(function(){document.getElementById('placeName').focus();},300);
+}
+
+function closeAddModal(){
+  document.getElementById('addModal').style.display='none';
+  document.getElementById('acList').style.display='none';
+}
+
+function selectIcon(el,icon){
+  selectedIcon=icon;
+  document.querySelectorAll('.icon-opt').forEach(function(o){o.classList.remove('selected');});
+  el.classList.add('selected');
+}
+
+function savePlace(){
+  var name=document.getElementById('placeName').value.trim();
+  var lat =parseFloat(document.getElementById('placeLat').value);
+  var lng =parseFloat(document.getElementById('placeLng').value);
+  var addr=document.getElementById('placeDisplay').value || document.getElementById('placeAddr').value.trim();
+
+  if(!name){document.getElementById('placeName').style.borderColor='#DC2626';return;}
+  if(!addr){document.getElementById('placeAddr').style.borderColor='#DC2626';showToast('Please select an address from the suggestions');return;}
+  if(!lat||!lng){showToast('Please select an address from the dropdown suggestions');return;}
+
+  var id=('place_'+Date.now());
+  var color=iconColors[selectedIcon]||'#3B9EFF';
+  savedPlaces.push({id:id,name:name,address:addr,icon:selectedIcon,color:color,lat:lat,lng:lng});
+  saveToStorage();
+  closeAddModal();
+  renderPlaceCards();
+  renderPlaceTabs();
+  renderMapPlaceMarkers();
+  // Fly to the new place
+  flyTo(lat,lng,16,name+' · '+addr);
+  showToast('📍 '+name+' saved · showing on map');
+}
+
+// ── Route navigation ──
+function startRoute(name,level,desc){
+  if(level==='red'){showToast('⚠ Route not recommended');return;}
+  var lat=currentLat,lng=currentLng;
+  var color=level==='green'?'#22C55E':'#F59E0B';
+  var ex=document.getElementById('routeBanner');if(ex)ex.remove();
+  var b=document.createElement('div');b.id='routeBanner';
+  b.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0d1f3c;border:1.5px solid '+color+';border-radius:16px;padding:13px 16px;z-index:3000;width:340px;max-width:92vw;box-shadow:0 4px 20px rgba(0,0,0,.5);animation:slideUp .3s ease';
+  b.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><div style="width:10px;height:10px;border-radius:50%;background:'+color+';flex-shrink:0"></div><div style="font-size:13px;font-weight:700;color:white;flex:1">'+name+'</div><div onclick="cancelRoute()" style="font-size:20px;color:#94A3B8;cursor:pointer">×</div></div><div style="font-size:11px;color:#94A3B8;margin-bottom:10px">'+desc+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button onclick="openMapsRoute('+lat+','+lng+')" style="padding:9px;background:'+color+';border:none;border-radius:10px;font-size:12px;font-weight:700;color:'+(level==='green'?'#000':'#fff')+';cursor:pointer">🗺️ Open in Maps</button><button onclick="cancelRoute()" style="padding:9px;background:#1e3a6e;border:none;border-radius:10px;font-size:12px;font-weight:600;color:#94A3B8;cursor:pointer">Cancel</button></div>';
+  document.body.appendChild(b);
+  showToast('🐬 Route started');
+}
+function openMapsRoute(lat,lng){window.open(lat?'https://www.google.com/maps/dir/?api=1&origin='+lat+','+lng+'&travelmode=walking':'https://www.google.com/maps/dir/?api=1&travelmode=walking','_blank');}
+function cancelRoute(){var b=document.getElementById('routeBanner');if(b)b.remove();}
+
+// ── Refresh ──
+function refreshAll(){
+  if(currentLat&&currentLng){loadPulse(currentCity||'your area');generateLocationContent(currentCity||'your area',currentCity||'your area');}
+  else getLocation();
+  showToast('🐬 SafeMap refreshed · '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}));
+}
+
+// ── Toast ──
+function showToast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2800);
+}
+</script>
+</body>
+</html>

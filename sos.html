@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DolSafe · SOS</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#0A1628; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; display:flex; justify-content:center; min-height:100vh; }
+    .phone { width:100%; max-width:390px; display:flex; flex-direction:column; min-height:100vh; }
+
+    /* Header */
+    .header { padding:52px 18px 16px; display:flex; align-items:center; gap:12px; }
+    .back { font-size:22px; color:#94A3B8; cursor:pointer; }
+    .htitle { font-size:18px; font-weight:700; color:white; }
+    .hsub { font-size:11px; color:#94A3B8; margin-top:2px; }
+
+    .scroll { flex:1; padding:14px 18px; overflow-y:auto; }
+    .slbl { font-size:10px; font-weight:600; color:#94A3B8; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; margin-top:16px; }
+
+    /* Screens */
+    .screen { display:none; }
+    .screen.on { display:block; }
+
+    /* Hold button */
+    .hold-wrap { display:flex; flex-direction:column; align-items:center; padding:30px 0 20px; }
+    .ring1 { width:200px; height:200px; border-radius:50%; background:rgba(220,38,38,0.08); border:2px solid rgba(220,38,38,0.2); display:flex; align-items:center; justify-content:center; }
+    .ring2 { width:160px; height:160px; border-radius:50%; background:rgba(220,38,38,0.12); border:2px solid rgba(220,38,38,0.3); display:flex; align-items:center; justify-content:center; }
+    .holdbtn { width:120px; height:120px; border-radius:50%; background:#DC2626; border:4px solid #ff4444; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; cursor:pointer; box-shadow:0 0 40px rgba(220,38,38,0.5); user-select:none; -webkit-user-select:none; }
+    .holdbtn span { font-size:34px; }
+    .holdbtn b { font-size:10px; font-weight:700; color:white; letter-spacing:2px; }
+    .hint { font-size:12px; color:#94A3B8; margin-top:16px; text-align:center; line-height:1.6; }
+
+    /* Info rows */
+    .irow { background:#122245; border-radius:12px; padding:11px 13px; display:flex; align-items:flex-start; gap:10px; margin-bottom:9px; }
+    .irow-icon { font-size:20px; flex-shrink:0; }
+    .irow-title { font-size:12px; font-weight:600; color:white; margin-bottom:2px; }
+    .irow-sub { font-size:11px; color:#94A3B8; line-height:1.4; }
+
+    /* Contacts */
+    .crow { background:#122245; border-radius:10px; padding:10px 13px; display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+    .av { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+    .cname { font-size:12px; font-weight:600; color:white; flex:1; }
+    .cbadge { font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
+
+    /* Countdown */
+    .cdwrap { display:flex; flex-direction:column; align-items:center; padding:50px 0 20px; }
+    .cdcircle { width:180px; height:180px; border-radius:50%; background:rgba(220,38,38,0.2); border:4px solid #DC2626; display:flex; flex-direction:column; align-items:center; justify-content:center; animation:pulse .8s infinite; }
+    .cdnum { font-size:72px; font-weight:700; color:#DC2626; line-height:1; }
+    .cdlbl { font-size:13px; color:white; margin-top:4px; }
+    .cancelbtn { margin-top:24px; padding:12px 36px; background:transparent; border:1.5px solid #94A3B8; border-radius:24px; color:#94A3B8; font-size:14px; font-weight:600; cursor:pointer; }
+    @keyframes pulse { 0%,100%{transform:scale(1);}50%{transform:scale(1.05);} }
+
+    /* Active */
+    .sosbanner { background:#DC2626; border-radius:14px; padding:16px; text-align:center; margin-bottom:14px; animation:pulse 1.5s infinite; }
+    .sosbanner-icon { font-size:32px; }
+    .sosbanner-title { font-size:20px; font-weight:700; color:white; margin:6px 0 3px; }
+    .sosbanner-sub { font-size:12px; color:rgba(255,255,255,.85); }
+
+    .reccard { background:#1a0808; border:1.5px solid #DC2626; border-radius:14px; padding:14px; margin-bottom:12px; }
+    .rectop { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .recdot { width:12px; height:12px; border-radius:50%; background:#DC2626; animation:pulse .9s infinite; flex-shrink:0; }
+    .reclbl { font-size:13px; font-weight:700; color:white; flex:1; }
+    .rectimer { font-size:14px; font-weight:700; color:#DC2626; font-family:monospace; }
+    .wave { display:flex; align-items:center; gap:3px; height:36px; }
+    .wbar { flex:1; background:#DC2626; border-radius:2px; opacity:.7; animation:pulse .6s infinite; }
+    .recnote { font-size:10px; color:#94A3B8; text-align:center; margin-top:8px; }
+
+    /* Buttons */
+    .btn-red { width:100%; padding:14px; background:#DC2626; border:none; border-radius:12px; font-size:14px; font-weight:700; color:white; cursor:pointer; margin:14px 0 8px; }
+    .btn-outline { width:100%; padding:13px; background:transparent; border:1.5px solid #DC2626; border-radius:12px; color:#DC2626; font-size:13px; font-weight:700; cursor:pointer; margin-bottom:20px; }
+    .btn-blue { width:100%; padding:13px; background:#3B9EFF; border:none; border-radius:12px; font-size:14px; font-weight:700; color:white; cursor:pointer; margin-bottom:8px; }
+    .btn-gray { width:100%; padding:11px; background:transparent; border:1px solid #1e3a6e; border-radius:12px; font-size:13px; color:#94A3B8; cursor:pointer; }
+
+    /* Safe */
+    .safewrap { text-align:center; padding:30px 0; }
+    .safeicon { font-size:64px; display:block; margin-bottom:12px; }
+    .safetitle { font-size:22px; font-weight:700; color:white; margin-bottom:6px; }
+    .safesub { font-size:12px; color:#94A3B8; line-height:1.6; margin-bottom:20px; }
+    .savecard { background:#122245; border-radius:12px; padding:13px; display:flex; align-items:flex-start; gap:10px; text-align:left; margin-bottom:10px; }
+
+    /* Nav */
+    .botnav { background:#0A1628; border-top:1px solid #1e3a6e; display:flex; padding:8px 0 14px; position:sticky; bottom:0; }
+    .nitem { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; color:#94A3B8; font-size:20px; }
+    .nitem.active { color:#DC2626; }
+    .nlbl { font-size:10px; }
+    .nsos { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; }
+    .nsosbtn { width:46px; height:46px; border-radius:50%; background:#DC2626; display:flex; align-items:center; justify-content:center; font-size:22px; margin-top:-14px; box-shadow:0 0 0 3px #0A1628; }
+    .nsoslbl { font-size:10px; font-weight:700; color:#DC2626; }
+
+    .toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px); background:#DC2626; color:white; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:600; opacity:0; transition:all .3s; pointer-events:none; white-space:nowrap; z-index:100; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="header">
+    <div class="back" onclick="window.location.href='index.html'">←</div>
+    <div>
+      <div class="htitle">🆘 SOS Emergency</div>
+      <div class="hsub">Hold the button 3 seconds to activate</div>
+    </div>
+  </div>
+
+  <div class="scroll" id="scr">
+
+    <!-- READY -->
+    <div class="screen on" id="s-ready">
+      <div class="hold-wrap">
+        <div class="ring1"><div class="ring2">
+          <div class="holdbtn" id="holdBtn">
+            <span>⚠️</span>
+            <b>HOLD</b>
+          </div>
+        </div></div>
+        <div class="hint">Hold for <strong style="color:white">3 seconds</strong> to send SOS<br>Starts voice recording · shares GPS · alerts contacts</div>
+      </div>
+      <p class="slbl" style="margin-top:0">What activates</p>
+      <div class="irow"><div class="irow-icon">📍</div><div><div class="irow-title">GPS location shared instantly</div><div class="irow-sub">Sent to contacts · updates every 30 seconds</div></div></div>
+      <div class="irow"><div class="irow-icon">🎙️</div><div><div class="irow-title">Voice recording starts automatically</div><div class="irow-sub">Microphone activates silently · records as evidence · saved encrypted to vault</div></div></div>
+      <div class="irow"><div class="irow-icon">📲</div><div><div class="irow-title">Trusted contacts notified</div><div class="irow-sub">Jordan and Maya receive your live location immediately</div></div></div>
+      <div class="irow"><div class="irow-icon">🚔</div><div><div class="irow-title">One-tap 911 call</div><div class="irow-sub">Location pre-loaded · escalate to emergency services instantly</div></div></div>
+      <p class="slbl">Trusted contacts</p>
+      <div class="crow"><div class="av" style="background:#dbeafe;color:#1d4ed8">JR</div><div class="cname">Jordan Rivera</div><div class="cbadge" style="background:#dcfce7;color:#166634">Ready ✓</div></div>
+      <div class="crow"><div class="av" style="background:#dcfce7;color:#166634">MT</div><div class="cname">Maya Torres</div><div class="cbadge" style="background:#dcfce7;color:#166634">Ready ✓</div></div>
+    </div>
+
+    <!-- COUNTDOWN -->
+    <div class="screen" id="s-countdown">
+      <div class="cdwrap">
+        <div class="cdcircle">
+          <div class="cdnum" id="cNum">3</div>
+          <div class="cdlbl">Activating SOS…</div>
+        </div>
+        <button class="cancelbtn" id="cancelBtn">Cancel</button>
+      </div>
+      <div style="text-align:center;font-size:12px;color:#94A3B8;margin-top:10px">Keep holding · release or tap Cancel to stop</div>
+    </div>
+
+    <!-- ACTIVE -->
+    <div class="screen" id="s-active">
+      <div class="sosbanner">
+        <div class="sosbanner-icon">🆘</div>
+        <div class="sosbanner-title">SOS ACTIVE</div>
+        <div class="sosbanner-sub">Help is on the way · stay calm · you are not alone</div>
+      </div>
+      <div class="reccard">
+        <div class="rectop">
+          <div class="recdot"></div>
+          <div class="reclbl">🎙️ Voice recording active</div>
+          <div class="rectimer" id="recTime">00:00</div>
+        </div>
+        <div class="wave" id="wave"></div>
+        <div class="recnote">Recording everything around you · encrypted · saved to vault</div>
+      </div>
+      <div class="irow"><div class="irow-icon">📍</div><div><div class="irow-title">Live location</div><div class="irow-sub" id="locText">Getting GPS…</div></div></div>
+      <p class="slbl">Contacts notified</p>
+      <div class="crow"><div class="av" style="background:#dbeafe;color:#1d4ed8">JR</div><div style="flex:1"><div class="cname">Jordan Rivera</div><div style="font-size:10px;color:#94A3B8;margin-top:2px">Tracking your location live</div></div><div class="cbadge" style="background:#dcfce7;color:#166634">Notified ✓</div></div>
+      <div class="crow"><div class="av" style="background:#dcfce7;color:#166634">MT</div><div style="flex:1"><div class="cname">Maya Torres</div><div style="font-size:10px;color:#94A3B8;margin-top:2px">Tracking your location live</div></div><div class="cbadge" style="background:#dcfce7;color:#166634">Notified ✓</div></div>
+      <button class="btn-red" id="btn911">🚔 Call 911 — location pre-loaded</button>
+      <button class="btn-outline" id="btnCancel">Cancel SOS — I am safe now</button>
+    </div>
+
+    <!-- SAFE -->
+    <div class="screen" id="s-safe">
+      <div class="safewrap">
+        <span class="safeicon">✅</span>
+        <div class="safetitle">You are safe</div>
+        <div class="safesub">SOS cancelled. Contacts notified. Voice recording saved to vault.</div>
+        <div class="savecard"><div style="font-size:20px">🎙️</div><div><div style="font-size:12px;font-weight:600;color:white;margin-bottom:2px">Recording saved</div><div style="font-size:11px;color:#94A3B8">Duration: <span id="finalTime">00:00</span> · Encrypted · Only you can access</div></div></div>
+        <div class="savecard"><div style="font-size:20px">📲</div><div><div style="font-size:12px;font-weight:600;color:white;margin-bottom:2px">All clear sent</div><div style="font-size:11px;color:#94A3B8">Jordan and Maya notified you are safe</div></div></div>
+        <button class="btn-blue" id="btnHome">← Back to home</button>
+        <button class="btn-gray" id="btnAgain">Use SOS again</button>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="botnav">
+    <div class="nitem" onclick="window.location.href='index.html'"><span>🏠</span><span class="nlbl">Home</span></div>
+    <div class="nitem"><span>⊞</span><span class="nlbl">Dashboard</span></div>
+    <div class="nsos"><div class="nsosbtn">⚠</div><span class="nsoslbl">SOS</span></div>
+    <div class="nitem active"><span>🆘</span><span class="nlbl">SOS</span></div>
+    <div class="nitem"><span>👤</span><span class="nlbl">Profile</span></div>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var recSec = 0;
+var recInt = null;
+var mediaRec = null;
+var isSOS = false;
+var holdInt = null;
+var count = 3;
+var counting = false;
+
+function show(name) {
+  var all = ['ready','countdown','active','safe'];
+  for (var i = 0; i < all.length; i++) {
+    var el = document.getElementById('s-' + all[i]);
+    el.style.display = 'none';
+    el.classList.remove('on');
+  }
+  var t = document.getElementById('s-' + name);
+  t.style.display = 'block';
+  t.classList.add('on');
+  document.getElementById('scr').scrollTop = 0;
+}
+
+function buildWave() {
+  var w = document.getElementById('wave');
+  w.innerHTML = '';
+  var h = [6,14,24,18,30,10,22,36,16,28,8,20,32,14,26,10,18,30,12,24];
+  for (var i = 0; i < h.length; i++) {
+    var b = document.createElement('div');
+    b.className = 'wbar';
+    b.style.height = h[i] + 'px';
+    b.style.animationDelay = (i * 0.06) + 's';
+    w.appendChild(b);
+  }
+}
+
+function beginHold() {
+  if (counting || isSOS) return;
+  counting = true;
+  count = 3;
+  document.getElementById('cNum').textContent = '3';
+  show('countdown');
+  holdInt = setInterval(function() {
+    count = count - 1;
+    document.getElementById('cNum').textContent = String(count);
+    if (count <= 0) {
+      clearInterval(holdInt);
+      holdInt = null;
+      counting = false;
+      activateSOS();
+    }
+  }, 1000);
+}
+
+function endHold() {
+  if (isSOS) return;
+  if (holdInt) { clearInterval(holdInt); holdInt = null; }
+  counting = false;
+  show('ready');
+}
+
+function activateSOS() {
+  isSOS = true;
+  show('active');
+  buildWave();
+  recSec = 0;
+  recInt = setInterval(function() {
+    recSec = recSec + 1;
+    var m = String(Math.floor(recSec / 60)).padStart(2, '0');
+    var s = String(recSec % 60).padStart(2, '0');
+    document.getElementById('recTime').textContent = m + ':' + s;
+  }, 1000);
+  setTimeout(function() {
+    document.getElementById('locText').textContent = '34th St & 8th Ave · Midtown Manhattan · Accuracy: 8m';
+  }, 1500);
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      mediaRec = new MediaRecorder(stream);
+      mediaRec.start();
+      showToast('🎙️ Microphone active · recording');
+    }).catch(function() {
+      showToast('🎙️ Recording active · allow mic for real audio');
+    });
+  } else {
+    showToast('🎙️ Recording active (simulated)');
+  }
+  showToast('🆘 SOS ACTIVE · Contacts notified');
+}
+
+function cancelSOS() {
+  isSOS = false;
+  clearInterval(recInt);
+  if (mediaRec && mediaRec.state !== 'inactive') {
+    mediaRec.stop();
+    mediaRec.stream.getTracks().forEach(function(t) { t.stop(); });
+  }
+  var m = String(Math.floor(recSec / 60)).padStart(2, '0');
+  var s = String(recSec % 60).padStart(2, '0');
+  document.getElementById('finalTime').textContent = m + ':' + s;
+  show('safe');
+  showToast('✅ All clear sent to contacts');
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+
+// Wire buttons
+document.getElementById('holdBtn').onclick = function() { beginHold(); };
+document.getElementById('cancelBtn').onclick = function() { clearInterval(holdInt); counting = false; show('ready'); showToast('Cancelled'); };
+document.getElementById('btnCancel').onclick = function() { cancelSOS(); };
+document.getElementById('btn911').onclick = function() { showToast('📞 Calling 911…'); setTimeout(function() { window.location.href = 'tel:911'; }, 800); };
+document.getElementById('btnHome').onclick = function() { window.location.href = 'index.html'; };
+document.getElementById('btnAgain').onclick = function() { isSOS = false; recSec = 0; document.getElementById('recTime').textContent = '00:00'; document.getElementById('locText').textContent = 'Getting GPS…'; show('ready'); };
+</script>
+</body>
+</html>
